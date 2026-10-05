@@ -1,0 +1,266 @@
+// Copyright 2026 The Steward Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package steward.reporting.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1;reportingv1";
+
+// CaseStatus is where a case sits in the officer's queue.
+enum CaseStatus {
+  CASE_STATUS_UNSPECIFIED = 0;
+  CASE_STATUS_NEW = 1;
+  CASE_STATUS_IN_REVIEW = 2;
+  // An officer asked the reporter something and waits for the answer.
+  CASE_STATUS_NEEDS_REPORTER_REPLY = 3;
+  CASE_STATUS_RISK_ASSESSMENT = 4;
+  // A reportable decision was recorded; notices are being tracked.
+  CASE_STATUS_NOTIFICATION_DUE = 5;
+  CASE_STATUS_CLOSED = 6;
+}
+
+// ReportKind says whether the reporter gave their name.
+enum ReportKind {
+  REPORT_KIND_UNSPECIFIED = 0;
+  // No name, email or address is kept; the case code and passphrase are the
+  // only way back.
+  REPORT_KIND_ANONYMOUS = 1;
+  // The reporter is the signed-in user; only officers see who it is.
+  REPORT_KIND_NAMED = 2;
+}
+
+// InformationKind is a kind of information a concern involves.
+enum InformationKind {
+  INFORMATION_KIND_UNSPECIFIED = 0;
+  INFORMATION_KIND_HEALTH = 1;
+  INFORMATION_KIND_CONTACT = 2;
+  INFORMATION_KIND_FINANCIAL = 3;
+  INFORMATION_KIND_NOT_SURE = 4;
+}
+
+// Answer is a yes, no or not sure reply.
+enum Answer {
+  ANSWER_UNSPECIFIED = 0;
+  ANSWER_YES = 1;
+  ANSWER_NO = 2;
+  ANSWER_NOT_SURE = 3;
+}
+
+// ReportDetails is what the reporter tells us (C1). Every field is free text
+// or a choice; none asks who the reporter is.
+message ReportDetails {
+  // What happened. Required.
+  string what_happened = 1;
+  // When it happened, in the reporter's words ("About 2 Oct, morning").
+  string occurred = 2;
+  // Where: a department or place, free text.
+  string location = 3;
+  repeated InformationKind information_kinds = 4;
+  Answer still_happening = 5;
+}
+
+// AttachmentUpload is a file sent with a report. Metadata is stripped on the
+// server before it is stored; only JPEG, PNG, GIF and plain text are taken.
+message AttachmentUpload {
+  string filename = 1;
+  string content_type = 2;
+  bytes data = 3;
+}
+
+// Attachment describes a stored file. The bytes come from
+// CaseService.GetAttachment.
+message Attachment {
+  string id = 1;
+  string filename = 2;
+  string content_type = 3;
+  int64 size_bytes = 4;
+  // Always true for a stored file; shown to officers as "metadata removed".
+  bool metadata_stripped = 5;
+}
+
+// MessageAuthor says who wrote a thread message.
+enum MessageAuthor {
+  MESSAGE_AUTHOR_UNSPECIFIED = 0;
+  MESSAGE_AUTHOR_REPORTER = 1;
+  MESSAGE_AUTHOR_OFFICER = 2;
+}
+
+// ThreadMessage is one message in the two-way thread with the reporter.
+message ThreadMessage {
+  string id = 1;
+  MessageAuthor author = 2;
+  // The officer's user id. Empty on reporter messages, and never sent to the
+  // reporter.
+  string officer_user_id = 3;
+  string body = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// ReporterView is everything a reporter may see of their report: the status
+// and the thread. Notes, the assessment, notices, the assignee and officer ids
+// are never part of it.
+message ReporterView {
+  string case_code = 1;
+  CaseStatus status = 2;
+  ReportDetails details = 3;
+  repeated ThreadMessage thread = 4;
+  google.protobuf.Timestamp received_at = 5;
+}
+
+// Note is an internal note on a case, never shown to the reporter.
+message Note {
+  string id = 1;
+  string author_user_id = 2;
+  string body = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+// Recipient is who received or saw the information (C7, factor 2).
+enum Recipient {
+  RECIPIENT_UNSPECIFIED = 0;
+  RECIPIENT_STAFF_ONLY = 1;
+  RECIPIENT_UNKNOWN_PEOPLE = 2;
+  RECIPIENT_ANOTHER_ORGANISATION = 3;
+}
+
+// Viewed is whether the information was actually viewed (C7, factor 3).
+enum Viewed {
+  VIEWED_UNSPECIFIED = 0;
+  VIEWED_YES = 1;
+  VIEWED_PROBABLY = 2;
+  VIEWED_NO = 3;
+}
+
+// Mitigation is how far the risk was reduced (C7, factor 4).
+enum Mitigation {
+  MITIGATION_UNSPECIFIED = 0;
+  MITIGATION_FULLY = 1;
+  MITIGATION_PARTLY = 2;
+  MITIGATION_NOT_AT_ALL = 3;
+}
+
+// RiskFactors are the four answers of the guided assessment.
+message RiskFactors {
+  // What information was involved. At least one.
+  repeated InformationKind information = 1;
+  Recipient recipient = 2;
+  Viewed viewed = 3;
+  Mitigation mitigation = 4;
+}
+
+// Suggestion is the result Steward suggests from the factors.
+enum Suggestion {
+  SUGGESTION_UNSPECIFIED = 0;
+  SUGGESTION_NOTIFICATION_LIKELY_REQUIRED = 1;
+  SUGGESTION_LOW_PROBABILITY_OF_COMPROMISE = 2;
+}
+
+// BreachDecision is the officer's recorded decision.
+enum BreachDecision {
+  BREACH_DECISION_UNSPECIFIED = 0;
+  BREACH_DECISION_REPORTABLE = 1;
+  BREACH_DECISION_NOT_REPORTABLE = 2;
+}
+
+// RiskAssessment is a recorded assessment (C7).
+message RiskAssessment {
+  RiskFactors factors = 1;
+  Suggestion suggestion = 2;
+  BreachDecision decision = 3;
+  string reason = 4;
+  string decided_by_user_id = 5;
+  google.protobuf.Timestamp decided_at = 6;
+}
+
+// NoticeRecipient is who must be told (C8).
+enum NoticeRecipient {
+  NOTICE_RECIPIENT_UNSPECIFIED = 0;
+  NOTICE_RECIPIENT_AFFECTED_PEOPLE = 1;
+  NOTICE_RECIPIENT_REGULATOR = 2;
+  NOTICE_RECIPIENT_MEDIA = 3;
+  NOTICE_RECIPIENT_OTHER = 4;
+}
+
+// NoticeStatus is where a notice stands.
+enum NoticeStatus {
+  NOTICE_STATUS_UNSPECIFIED = 0;
+  NOTICE_STATUS_NOT_SENT = 1;
+  NOTICE_STATUS_DRAFT = 2;
+  NOTICE_STATUS_SENT = 3;
+  NOTICE_STATUS_NOT_NEEDED = 4;
+}
+
+// Notice is one notification the case may owe, with its deadline counted
+// from the case's discovery date.
+message Notice {
+  string id = 1;
+  NoticeRecipient recipient = 2;
+  // A label for an OTHER recipient, or a detail ("About 30 people").
+  string label = 3;
+  // How it is sent ("letter", "online form").
+  string method = 4;
+  // Days allowed from discovery, fixed when the notice is added.
+  int32 days_allowed = 5;
+  // The deadline, YYYY-MM-DD: the discovery date plus days_allowed.
+  string due_on = 6;
+  NoticeStatus status = 7;
+  // When it was sent, YYYY-MM-DD; set with NOTICE_STATUS_SENT.
+  string sent_on = 8;
+}
+
+// Outcome is how a case closed (C9).
+enum Outcome {
+  OUTCOME_UNSPECIFIED = 0;
+  OUTCOME_SUBSTANTIATED = 1;
+  OUTCOME_NOT_SUBSTANTIATED = 2;
+  OUTCOME_INCONCLUSIVE = 3;
+}
+
+// CorrectiveAction is one action taken at close-out, optionally linked to a
+// policy in core.
+message CorrectiveAction {
+  string description = 1;
+  // The core policy id (a UUID) the action changes; empty for none.
+  string policy_id = 2;
+}
+
+// CaseSummary is one row of the case queue (C5).
+message CaseSummary {
+  string id = 1;
+  string case_code = 2;
+  ReportKind kind = 3;
+  CaseStatus status = 4;
+  // The first line of what happened, cut to 120 characters.
+  string summary = 5;
+  string assignee_user_id = 6;
+  google.protobuf.Timestamp received_at = 7;
+  // The earliest deadline of a notice not yet sent or marked not needed,
+  // YYYY-MM-DD; empty for none.
+  string next_deadline = 8;
+}
+
+// Case is the full case for an officer (C6).
+message Case {
+  string id = 1;
+  string case_code = 2;
+  ReportKind kind = 3;
+  CaseStatus status = 4;
+  ReportDetails details = 5;
+  // The named reporter's user id; empty on an anonymous case.
+  string reporter_user_id = 6;
+  string assignee_user_id = 7;
+  google.protobuf.Timestamp received_at = 8;
+  // When the incident was discovered, YYYY-MM-DD. Deadlines count from it.
+  string discovered_on = 9;
+  repeated Attachment attachments = 10;
+  repeated ThreadMessage thread = 11;
+  repeated Note notes = 12;
+  // The latest recorded assessment; unset before the first.
+  RiskAssessment assessment = 13;
+  repeated Notice notices = 14;
+  Outcome outcome = 15;
+  repeated CorrectiveAction corrective_actions = 16;
+  google.protobuf.Timestamp closed_at = 17;
+}

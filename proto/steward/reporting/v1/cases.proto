@@ -1,0 +1,175 @@
+// Copyright 2026 The Steward Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package steward.reporting.v1;
+
+import "steward/reporting/v1/reporting.proto";
+
+option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1;reportingv1";
+
+// CaseService is the officer's side. Every call needs a forwarded actor who is
+// in a configured officer group; anyone else, site admins and root included,
+// is refused. Every call, reads included, is audited.
+service CaseService {
+  // ListCases is the case queue (C5), with counts per status.
+  rpc ListCases(ListCasesRequest) returns (ListCasesResponse);
+  // GetCase opens one case (C6).
+  rpc GetCase(GetCaseRequest) returns (GetCaseResponse);
+  // GetAttachment returns a stored attachment's bytes.
+  rpc GetAttachment(GetAttachmentRequest) returns (GetAttachmentResponse);
+  // PostMessage writes to the reporter's thread and moves the case to
+  // "Needs reporter reply".
+  rpc PostMessage(PostMessageRequest) returns (PostMessageResponse);
+  // AddNote adds an internal note, never shown to the reporter.
+  rpc AddNote(AddNoteRequest) returns (AddNoteResponse);
+  // AssignCase sets or clears the assignee.
+  rpc AssignCase(AssignCaseRequest) returns (AssignCaseResponse);
+  // SetCaseStatus moves an open case; closing goes through CloseCase.
+  rpc SetCaseStatus(SetCaseStatusRequest) returns (SetCaseStatusResponse);
+  // SetDiscoveryDate sets when the incident was discovered; every notice
+  // deadline moves with it.
+  rpc SetDiscoveryDate(SetDiscoveryDateRequest) returns (SetDiscoveryDateResponse);
+  // RecordRiskAssessment records the guided assessment and the officer's
+  // decision (C7). A reportable decision moves the case to "Notification due".
+  rpc RecordRiskAssessment(RecordRiskAssessmentRequest) returns (RecordRiskAssessmentResponse);
+  // AddNotice adds a notice to track (C8).
+  rpc AddNotice(AddNoticeRequest) returns (AddNoticeResponse);
+  // UpdateNotice records a notice's progress.
+  rpc UpdateNotice(UpdateNoticeRequest) returns (UpdateNoticeResponse);
+  // CloseCase records the outcome and corrective actions (C9), and posts the
+  // closing message to the reporter's thread when there is one.
+  rpc CloseCase(CloseCaseRequest) returns (CloseCaseResponse);
+}
+
+message ListCasesRequest {
+  // Only cases in these statuses; empty for every status.
+  repeated CaseStatus statuses = 1;
+  // Only cases assigned to this user id; empty for any.
+  string assignee_user_id = 2;
+}
+
+// StatusCount is how many cases are in one status.
+message StatusCount {
+  CaseStatus status = 1;
+  int32 count = 2;
+}
+
+message ListCasesResponse {
+  repeated CaseSummary cases = 1;
+  // Counts over every case, whatever the filter.
+  repeated StatusCount counts = 2;
+}
+
+message GetCaseRequest {
+  string case_id = 1;
+}
+
+message GetCaseResponse {
+  Case case = 1;
+}
+
+message GetAttachmentRequest {
+  string case_id = 1;
+  string attachment_id = 2;
+}
+
+message GetAttachmentResponse {
+  Attachment attachment = 1;
+  bytes data = 2;
+}
+
+message PostMessageRequest {
+  string case_id = 1;
+  string body = 2;
+}
+
+message PostMessageResponse {
+  ThreadMessage message = 1;
+}
+
+message AddNoteRequest {
+  string case_id = 1;
+  string body = 2;
+}
+
+message AddNoteResponse {
+  Note note = 1;
+}
+
+message AssignCaseRequest {
+  string case_id = 1;
+  // Empty clears the assignee.
+  string assignee_user_id = 2;
+}
+
+message AssignCaseResponse {
+  Case case = 1;
+}
+
+message SetCaseStatusRequest {
+  string case_id = 1;
+  // Any status but UNSPECIFIED and CLOSED.
+  CaseStatus status = 2;
+}
+
+message SetCaseStatusResponse {
+  Case case = 1;
+}
+
+message SetDiscoveryDateRequest {
+  string case_id = 1;
+  // YYYY-MM-DD, not in the future.
+  string discovered_on = 2;
+}
+
+message SetDiscoveryDateResponse {
+  Case case = 1;
+}
+
+message RecordRiskAssessmentRequest {
+  string case_id = 1;
+  RiskFactors factors = 2;
+  BreachDecision decision = 3;
+  // Required.
+  string reason = 4;
+}
+
+message RecordRiskAssessmentResponse {
+  RiskAssessment assessment = 1;
+}
+
+message AddNoticeRequest {
+  string case_id = 1;
+  NoticeRecipient recipient = 2;
+  string label = 3;
+  string method = 4;
+}
+
+message AddNoticeResponse {
+  Notice notice = 1;
+}
+
+message UpdateNoticeRequest {
+  string case_id = 1;
+  string notice_id = 2;
+  NoticeStatus status = 3;
+  // YYYY-MM-DD; required with NOTICE_STATUS_SENT, empty otherwise.
+  string sent_on = 4;
+}
+
+message UpdateNoticeResponse {
+  Notice notice = 1;
+}
+
+message CloseCaseRequest {
+  string case_id = 1;
+  Outcome outcome = 2;
+  repeated CorrectiveAction corrective_actions = 3;
+  // Posted to the reporter's thread; empty posts nothing.
+  string closing_message = 4;
+}
+
+message CloseCaseResponse {
+  Case case = 1;
+}
