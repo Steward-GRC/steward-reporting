@@ -1,0 +1,103 @@
+// Copyright 2026 The Steward Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package steward.reporting.v1;
+
+import "steward/reporting/v1/reporting.proto";
+
+option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1;reportingv1";
+
+// IntakeService is the reporter's side: report a concern, then check it and
+// reply. Anonymous calls carry no actor and need none; any forwarded actor on
+// them is ignored. The named calls act for the forwarded, signed-in actor and
+// only ever reach that actor's own named reports.
+service IntakeService {
+  // SubmitAnonymousReport files a report with no name, email or address and
+  // returns the one-time case code. The passphrase is chosen by the reporter
+  // and stored only as a slow password hash.
+  rpc SubmitAnonymousReport(SubmitAnonymousReportRequest) returns (SubmitAnonymousReportResponse);
+  // CheckReport opens an anonymous report by its case code and passphrase.
+  // An unknown code and a wrong passphrase get the same answer.
+  rpc CheckReport(CheckReportRequest) returns (CheckReportResponse);
+  // ReplyToReport adds the anonymous reporter's message to the thread.
+  rpc ReplyToReport(ReplyToReportRequest) returns (ReplyToReportResponse);
+  // SubmitNamedReport files a report as the signed-in actor.
+  rpc SubmitNamedReport(SubmitNamedReportRequest) returns (SubmitNamedReportResponse);
+  // ListMyReports lists the signed-in actor's own named reports (C4).
+  rpc ListMyReports(ListMyReportsRequest) returns (ListMyReportsResponse);
+  // GetMyReport opens one of the signed-in actor's own named reports.
+  rpc GetMyReport(GetMyReportRequest) returns (GetMyReportResponse);
+  // ReplyToMyReport adds the signed-in reporter's message to the thread.
+  rpc ReplyToMyReport(ReplyToMyReportRequest) returns (ReplyToMyReportResponse);
+}
+
+message SubmitAnonymousReportRequest {
+  ReportDetails details = 1;
+  // At least 10 characters.
+  string passphrase = 2;
+  repeated AttachmentUpload attachments = 3;
+}
+
+message SubmitAnonymousReportResponse {
+  // Shown once, grouped in threes ("7KQ-42M-RX").
+  string case_code = 1;
+}
+
+message CheckReportRequest {
+  string case_code = 1;
+  string passphrase = 2;
+}
+
+message CheckReportResponse {
+  ReporterView report = 1;
+}
+
+message ReplyToReportRequest {
+  string case_code = 1;
+  string passphrase = 2;
+  string body = 3;
+}
+
+message ReplyToReportResponse {
+  ReporterView report = 1;
+}
+
+message SubmitNamedReportRequest {
+  ReportDetails details = 1;
+  repeated AttachmentUpload attachments = 2;
+}
+
+message SubmitNamedReportResponse {
+  string case_id = 1;
+  string case_code = 2;
+}
+
+message ListMyReportsRequest {}
+
+// MyReport is one row of the reporter's own list.
+message MyReport {
+  string case_id = 1;
+  ReporterView report = 2;
+}
+
+message ListMyReportsResponse {
+  repeated MyReport reports = 1;
+}
+
+message GetMyReportRequest {
+  string case_id = 1;
+}
+
+message GetMyReportResponse {
+  ReporterView report = 1;
+}
+
+message ReplyToMyReportRequest {
+  string case_id = 1;
+  string body = 2;
+}
+
+message ReplyToMyReportResponse {
+  ReporterView report = 1;
+}
