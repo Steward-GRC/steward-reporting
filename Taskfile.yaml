@@ -52,3 +52,29 @@ tasks:
     cmds:
       - go install github.com/Bugs5382/golic/cmd/golic@{{.GOLIC_VERSION}}
       - golic inject -t {{.TEMPLATE_LIC}} -c "{{.COMMON_LIC}}"
+  test-race:
+    desc: Run tests with the race detector
+    cmds:
+      - go test -race -count=1 ./...
+  proto:
+    desc: Fetch the pinned callee protos, lint, and regenerate gen/
+    cmds:
+      - scripts/proto-generate.sh
+      - buf lint
+  workloadauth:
+    desc: Compare internal/workloadauth with steward-core's copy at STEWARD_CORE_REF
+    cmds:
+      - scripts/workloadauth-check.sh
+  proto-breaking:
+    desc: Check proto/ for breaking changes against main
+    cmds:
+      - buf breaking proto --against '.git#branch=main,subdir=proto'
+  docs:
+    desc: Regenerate docs/error-codes.md from the error registry
+    cmds:
+      - UPDATE_DOCS=1 go test ./internal/errcodes -run TestErrorCodesDocIsCurrent
+  run:
+    desc: Run the service locally with .env
+    dotenv: ['.env']
+    cmds:
+      - go run ./cmd/server
