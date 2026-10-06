@@ -97,7 +97,7 @@ func (s *Intake) SubmitAnonymousReport(ctx context.Context, req *reportingv1.Sub
 		return nil, errcodes.Error(ctx, err)
 	}
 	id, code, err := s.file(ctx, store.NewCase{Kind: domain.KindAnonymous, PassphraseHash: hash, Details: details,
-		DiscoveredOn: s.d.today(), Attachments: atts})
+		DiscoveredOn: s.d.today(), ReceivedAt: s.d.now(), Attachments: atts})
 	if err != nil {
 		return nil, errcodes.Error(ctx, err)
 	}
@@ -214,7 +214,7 @@ func (s *Intake) SubmitNamedReport(ctx context.Context, req *reportingv1.SubmitN
 		return nil, errcodes.Error(ctx, err)
 	}
 	id, code, err := s.file(ctx, store.NewCase{Kind: domain.KindNamed, ReporterUserID: reporter, Details: details,
-		DiscoveredOn: s.d.today(), Attachments: atts})
+		DiscoveredOn: s.d.today(), ReceivedAt: s.d.now(), Attachments: atts})
 	if err != nil {
 		return nil, errcodes.Error(ctx, err)
 	}
