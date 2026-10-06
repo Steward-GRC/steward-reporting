@@ -36,6 +36,7 @@ is reused for 5 seconds.
 | `CASE_ACCESS_DENIED` for an officer | `REPORTING_OFFICER_GROUPS`, and the user's groups in identity: a local group id or an identity provider group name, matched ignoring case. A disabled or deleted account is never an officer. |
 | `REPORT_SIGN_IN_REQUIRED` on every named or case call | The gateway isn't passing the user: check its service account is `steward/steward-gateway` and listed in `WORKLOAD_ALLOWED_SERVICEACCOUNTS`. |
 | `Unauthenticated` or `PermissionDenied` with no error code | Service-to-service authentication refused the call; `reporting.call.refused` audit events say who and why. |
+| `Unavailable: workload verifier unavailable` | The JWKS hasn't loaded, so every call that needs a token is refused and `workloadauth` reports down until a fetch succeeds. A `status 401` in the `JWKS refresh failed` log line means the API server refused `WORKLOAD_OIDC_BEARER_FILE`: it must hold a token with the API server's own audience, not the `steward` caller token. |
 | `Code 8101: Internal Error` | A store call failed; the log line with the same trace id names the `op`. |
 | Audit events stop arriving | `SELECT status, count(*) FROM audit_outbox GROUP BY status`: `pending` rows mean the relay can't publish (check RabbitMQ), `dead` rows keep their last error. |
 | Many `report.check_refused` events | Someone is guessing case codes. Throttle at the gateway; each try already costs one argon2id hash. |
