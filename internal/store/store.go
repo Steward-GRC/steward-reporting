@@ -55,7 +55,10 @@ type NewCase struct {
 	PassphraseHash string
 	Details        domain.Details
 	DiscoveredOn   time.Time
-	Attachments    []NewAttachment
+	// ReceivedAt is when the case was filed, from the service clock. Zero
+	// leaves it to the database.
+	ReceivedAt  time.Time
+	Attachments []NewAttachment
 }
 
 // Attachment describes a stored attachment.
@@ -186,6 +189,13 @@ func textToKinds(s []string) []domain.InformationKind {
 	return out
 }
 
+func nullableTime(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	return &t
+}
+
 func nullable(s string) *string {
 	if s == "" {
 		return nil
@@ -199,11 +209,11 @@ func (s *Store) Create(ctx context.Context, nc NewCase) (string, error) {
 	err := InTx(ctx, s.db, func(ctx context.Context) error {
 		q := s.q(ctx)
 		err := q.QueryRow(ctx, `INSERT INTO cases (case_code, kind, reporter_user_id, passphrase_hash, what_happened,
-				occurred, location, information_kinds, still_happening, discovered_on)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+				occurred, location, information_kinds, still_happening, discovered_on, received_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, coalesce($11, now())) RETURNING id`,
 			nc.CaseCode, string(nc.Kind), nullable(nc.ReporterUserID), nullable(nc.PassphraseHash), nc.Details.WhatHappened,
 			nc.Details.Occurred, nc.Details.Location, kindsToText(nc.Details.InformationKinds), string(nc.Details.StillHappening),
-			nc.DiscoveredOn).Scan(&id)
+			nc.DiscoveredOn, nullableTime(nc.ReceivedAt)).Scan(&id)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "cases_case_code_key" {
 			return ErrCaseCodeTaken
