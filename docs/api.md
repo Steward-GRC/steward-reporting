@@ -1,16 +1,22 @@
 # API
 
-Two gRPC services in `proto/steward/reporting/v1`. The gateway is the only caller.
+Three gRPC services in `proto/steward/reporting/v1`. The gateway is the only caller.
 
 ## IntakeService: the reporter's side
 
 | RPC | Who | What |
 | --- | --- | --- |
-| `SubmitAnonymousReport` | anyone | Files a report with no name, email or address and returns the one-time case code (`7KQ-42M-RX`). The reporter chooses the passphrase. |
+| `GetIntakeOptions` | anyone | What the report form needs: whether anonymous reports are open (the public link) and the intake categories. |
+| `SubmitAnonymousReport` | anyone | Files a report with no name, email or address and returns the one-time case code (`7KQ-42M-RX`). The reporter chooses the passphrase. Refused with `PUBLIC_LINK_OFF`, before anything is stored, while the public link is off. |
 | `CheckReport` | anyone with the code and passphrase | The status and the thread. |
 | `ReplyToReport` | anyone with the code and passphrase | Adds the reporter's message; a case waiting on the reporter goes back to "In review". |
 | `SubmitNamedReport` | a signed-in user | Files a report as that user. |
 | `ListMyReports`, `GetMyReport`, `ReplyToMyReport` | a signed-in user | Only that user's own named reports. |
+
+Both submits check `ReportDetails.category` against the intake categories in the settings: while
+none is configured it must be empty; once any is, it must be one of their keys (`REPORT_INVALID`,
+field `category`). Switching the public link off stops new anonymous reports only: existing ones can
+still be checked and replied to, and named reports are unaffected.
 
 The reporter's view (`ReporterView`) is the status, the details and the thread. It never carries
 internal notes, the assessment, notices, the assignee or which officer wrote a message.
@@ -35,8 +41,8 @@ internal notes, the assessment, notices, the assignee or which officer wrote a m
 
 ## CaseService: the officer's side
 
-Every call needs a signed-in user who is in one of `REPORTING_OFFICER_GROUPS`, checked against
-identity on every call through steward-authz's rule engine. Site admins, root and compliance
+Every call needs a signed-in user who is in one of the officer groups in the Compliance settings,
+read on every call and checked against identity through steward-authz's rule engine. Site admins, root and compliance
 admins are not officers unless they are in one of those groups, and act-as is refused
 (`ACT_AS_NOT_ALLOWED`). Every refusal of a known user is audited as `case.access_refused`.
 
@@ -58,6 +64,22 @@ The suggestion is low risk when the risk was fully reduced, when the information
 or when only staff saw information that is neither health nor financial information; anything else,
 "not sure" included, suggests notification. The officer decides.
 
+## SettingsService: the Compliance settings (C10)
+
+| RPC | What |
+| --- | --- |
+| `GetSettings` | The officer groups, the public link switch, the retention period after close (days) and the intake categories, with who saved them last and when. |
+| `UpdateSettings` | Replaces every setting at once and returns them as saved. Officer groups are trimmed and deduplicated ignoring case (up to 50, 200 characters each). Retention is 30 to 36500 days. Up to 50 intake categories, each a unique key (lower-case letters, digits, `-` and `_`, up to 40 characters) and a label (up to 200 characters). |
+
+Both need a signed-in holder of the `compliance.manage` permission, which compliance admins hold,
+and site admins and root through the catalog: the Compliance settings belong to the compliance
+admin, and holding them doesn't make anyone an officer. Act-as is refused. Anyone else gets
+`SETTINGS_ACCESS_DENIED`, audited as `settings.access_refused`.
+
+The first start on an empty database stores the defaults: the officer groups from
+`REPORTING_OFFICER_GROUPS`, the public link on, seven years' retention and no intake categories.
+After that the variable is ignored and the stored settings win. A change applies from the next call.
+
 ## Audit events
 
 Every view and change publishes a `steward.audit.v1.AuditEvent` (tier `audit`) through the
@@ -70,11 +92,14 @@ go-outbox table `audit_outbox`, in the same transaction as the change.
 | `case.listed` | the officer | none |
 | `case.viewed`, `case.attachment_viewed`, `case.message_posted`, `case.note_added`, `case.assigned`, `case.status_changed`, `case.discovery_date_set`, `case.assessment_recorded`, `case.notice_added`, `case.notice_updated`, `case.closed` | the officer | `case:<id>` |
 | `case.access_refused` | the refused user (the real user during act-as) | `case:<id>` when the call named one |
+| `settings.read`, `settings.updated` | the settings admin | none |
+| `settings.access_refused` | the refused user (the real user during act-as) | none |
 | `reporting.call.refused` | none | `method:<full method>` |
 
 Audit readers are not the officer group, so no event carries report text, notes, messages,
 reasons or the case code, and reporter-side events name no actor, a named reporter included.
-Attributes carry only kinds, counts, statuses, decisions, outcomes and ids.
+Attributes carry only kinds, counts, statuses, decisions, outcomes and ids; `settings.updated`
+carries the number of officer groups and categories, the public link switch and the retention days.
 
 ## Errors
 
@@ -94,7 +119,7 @@ Coded errors carry an `ErrorInfo` (domain `reporting`); see [error codes](error-
 
 Every call but `grpc.health.v1` needs the caller's projected service-account token (audience
 `steward`) as `authorization: Bearer`. The only caller is `steward-gateway`: as itself on
-`SubmitAnonymousReport`, `CheckReport` and `ReplyToReport`, and on behalf of the signed-in user on
+`GetIntakeOptions`, `SubmitAnonymousReport`, `CheckReport` and `ReplyToReport`, and on behalf of the signed-in user on
 every other RPC. Any other service account is refused with `PermissionDenied` and audited.
 
 ## Health

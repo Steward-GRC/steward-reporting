@@ -17,6 +17,7 @@ const CallerGateway = "gateway"
 // actor can reach them; on every other method it acts for the signed-in
 // user.
 var CallerPolicy = workloadauth.Policy{
+	reportingv1.IntakeService_GetIntakeOptions_FullMethodName:      {CallerGateway: workloadauth.Self},
 	reportingv1.IntakeService_SubmitAnonymousReport_FullMethodName: {CallerGateway: workloadauth.Self},
 	reportingv1.IntakeService_CheckReport_FullMethodName:           {CallerGateway: workloadauth.Self},
 	reportingv1.IntakeService_ReplyToReport_FullMethodName:         {CallerGateway: workloadauth.Self},
@@ -36,4 +37,6 @@ var CallerPolicy = workloadauth.Policy{
 	reportingv1.CaseService_AddNotice_FullMethodName:               {CallerGateway: workloadauth.OnBehalf},
 	reportingv1.CaseService_UpdateNotice_FullMethodName:            {CallerGateway: workloadauth.OnBehalf},
 	reportingv1.CaseService_CloseCase_FullMethodName:               {CallerGateway: workloadauth.OnBehalf},
+	reportingv1.SettingsService_GetSettings_FullMethodName:         {CallerGateway: workloadauth.OnBehalf},
+	reportingv1.SettingsService_UpdateSettings_FullMethodName:      {CallerGateway: workloadauth.OnBehalf},
 }

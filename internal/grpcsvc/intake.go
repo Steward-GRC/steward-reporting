@@ -78,12 +78,44 @@ func (s *Intake) file(ctx context.Context, nc store.NewCase) (id, code string, e
 	return id, nc.CaseCode, nil
 }
 
-// SubmitAnonymousReport files a report that keeps nobody's name, email or
-// address. A forwarded actor is never read here.
-func (s *Intake) SubmitAnonymousReport(ctx context.Context, req *reportingv1.SubmitAnonymousReportRequest) (*reportingv1.SubmitAnonymousReportResponse, error) {
-	details, err := detailsFromProto(req.GetDetails()).Normalize()
+// GetIntakeOptions returns what the report form needs before anything is
+// filed. It reads nothing about any report, so it isn't audited.
+func (s *Intake) GetIntakeOptions(ctx context.Context, _ *reportingv1.GetIntakeOptionsRequest) (*reportingv1.GetIntakeOptionsResponse, error) {
+	st, err := loadSettings(ctx, s.d.Store)
 	if err != nil {
 		return nil, errcodes.Error(ctx, err)
+	}
+	return &reportingv1.GetIntakeOptionsResponse{AnonymousReportsOpen: st.PublicLink, Categories: categoriesToProto(st.Categories)}, nil
+}
+
+// details checks the reported details against the settings: the category
+// must be one of the configured ones.
+func (s *Intake) details(ctx context.Context, in *reportingv1.ReportDetails) (domain.Details, domain.Settings, error) {
+	details, err := detailsFromProto(in).Normalize()
+	if err != nil {
+		return domain.Details{}, domain.Settings{}, err
+	}
+	st, err := loadSettings(ctx, s.d.Store)
+	if err != nil {
+		return domain.Details{}, domain.Settings{}, err
+	}
+	if err := st.CheckCategory(details.Category); err != nil {
+		return domain.Details{}, domain.Settings{}, err
+	}
+	return details, st, nil
+}
+
+// SubmitAnonymousReport files a report that keeps nobody's name, email or
+// address. A forwarded actor is never read here. While the public link is
+// off it is refused, before anything is stored.
+func (s *Intake) SubmitAnonymousReport(ctx context.Context, req *reportingv1.SubmitAnonymousReportRequest) (*reportingv1.SubmitAnonymousReportResponse, error) {
+	details, st, err := s.details(ctx, req.GetDetails())
+	if err != nil {
+		return nil, errcodes.Error(ctx, err)
+	}
+	if !st.PublicLink {
+		s.d.Log.Ctx(ctx).Info("anonymous report refused: the public link is off")
+		return nil, errcodes.Error(ctx, errcodes.PublicLinkOff())
 	}
 	if err := domain.CheckPassphrase(req.GetPassphrase()); err != nil {
 		return nil, errcodes.Error(ctx, err)
@@ -205,7 +237,7 @@ func (s *Intake) SubmitNamedReport(ctx context.Context, req *reportingv1.SubmitN
 	if err != nil {
 		return nil, errcodes.Error(ctx, err)
 	}
-	details, err := detailsFromProto(req.GetDetails()).Normalize()
+	details, _, err := s.details(ctx, req.GetDetails())
 	if err != nil {
 		return nil, errcodes.Error(ctx, err)
 	}

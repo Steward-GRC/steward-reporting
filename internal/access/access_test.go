@@ -75,3 +75,36 @@ func TestIdentityDownRefusesTheCall(t *testing.T) {
 	c := access.New(directory, []string{"Privacy Officers"})
 	require.Equal(t, errcodes.CodeIdentityUnavailable, code(t, c.Officer(context.Background(), "broken")))
 }
+
+func TestOfficerGroupsAreReadOnEveryCall(t *testing.T) {
+	groups := []string{"Privacy Officers"}
+	c := access.NewFromSource(directory, func(context.Context) ([]string, error) { return groups, nil })
+	ctx := context.Background()
+	require.NoError(t, c.Officer(ctx, "grace"))
+	groups = []string{"9c1d4e2a-0000-4000-8000-000000000001"}
+	require.Equal(t, errcodes.CodeCaseAccessDenied, code(t, c.Officer(ctx, "grace")), "a removed group stops admitting at once")
+	require.NoError(t, c.Officer(ctx, "heidi"))
+}
+
+func TestOfficerGroupsUnreadableRefusesTheCall(t *testing.T) {
+	c := access.NewFromSource(directory, func(context.Context) ([]string, error) {
+		return nil, errcodes.StoreUnavailable("settings", errors.New("connection refused"))
+	})
+	require.Equal(t, errcodes.CodeStoreUnavailable, code(t, c.Officer(context.Background(), "grace")))
+}
+
+// The Compliance settings are changed by holders of compliance.manage:
+// compliance admins, and site admins and root through the catalog.
+func TestSettingsAdminHoldsComplianceManage(t *testing.T) {
+	c := access.New(directory, []string{"Privacy Officers"})
+	ctx := context.Background()
+	for _, id := range []string{"carol", "dave", "root"} {
+		require.NoError(t, c.SettingsAdmin(ctx, id), id)
+	}
+	for _, id := range []string{"grace", "alice", "nobody"} {
+		require.Equal(t, errcodes.CodeSettingsAccessDenied, code(t, c.SettingsAdmin(ctx, id)), id)
+	}
+	disabled := users{"carol": {ID: "carol", Enabled: false, Roles: []string{"compliance-admin"}}}
+	require.Equal(t, errcodes.CodeSettingsAccessDenied, code(t, access.New(disabled, nil).SettingsAdmin(ctx, "carol")))
+	require.Equal(t, errcodes.CodeIdentityUnavailable, code(t, c.SettingsAdmin(ctx, "broken")))
+}

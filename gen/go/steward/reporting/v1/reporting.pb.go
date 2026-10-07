@@ -737,8 +737,11 @@ type ReportDetails struct {
 	Location         string            `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	InformationKinds []InformationKind `protobuf:"varint,4,rep,packed,name=information_kinds,json=informationKinds,proto3,enum=steward.reporting.v1.InformationKind" json:"information_kinds,omitempty"`
 	StillHappening   Answer            `protobuf:"varint,5,opt,name=still_happening,json=stillHappening,proto3,enum=steward.reporting.v1.Answer" json:"still_happening,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The intake category key (IntakeOptions). Required once any category is
+	// configured, empty while none is.
+	Category      string `protobuf:"bytes,6,opt,name=category,proto3" json:"category,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReportDetails) Reset() {
@@ -804,6 +807,13 @@ func (x *ReportDetails) GetStillHappening() Answer {
 		return x.StillHappening
 	}
 	return Answer_ANSWER_UNSPECIFIED
+}
+
+func (x *ReportDetails) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
 }
 
 // AttachmentUpload is a file sent with a report. Metadata is stripped on the
@@ -1775,13 +1785,14 @@ var File_steward_reporting_v1_reporting_proto protoreflect.FileDescriptor
 
 const file_steward_reporting_v1_reporting_proto_rawDesc = "" +
 	"\n" +
-	"$steward/reporting/v1/reporting.proto\x12\x14steward.reporting.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x87\x02\n" +
+	"$steward/reporting/v1/reporting.proto\x12\x14steward.reporting.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x02\n" +
 	"\rReportDetails\x12#\n" +
 	"\rwhat_happened\x18\x01 \x01(\tR\fwhatHappened\x12\x1a\n" +
 	"\boccurred\x18\x02 \x01(\tR\boccurred\x12\x1a\n" +
 	"\blocation\x18\x03 \x01(\tR\blocation\x12R\n" +
 	"\x11information_kinds\x18\x04 \x03(\x0e2%.steward.reporting.v1.InformationKindR\x10informationKinds\x12E\n" +
-	"\x0fstill_happening\x18\x05 \x01(\x0e2\x1c.steward.reporting.v1.AnswerR\x0estillHappening\"e\n" +
+	"\x0fstill_happening\x18\x05 \x01(\x0e2\x1c.steward.reporting.v1.AnswerR\x0estillHappening\x12\x1a\n" +
+	"\bcategory\x18\x06 \x01(\tR\bcategory\"e\n" +
 	"\x10AttachmentUpload\x12\x1a\n" +
 	"\bfilename\x18\x01 \x01(\tR\bfilename\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12\x12\n" +

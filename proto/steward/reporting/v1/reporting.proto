@@ -59,6 +59,9 @@ message ReportDetails {
   string location = 3;
   repeated InformationKind information_kinds = 4;
   Answer still_happening = 5;
+  // The intake category key (IntakeOptions). Required once any category is
+  // configured, empty while none is.
+  string category = 6;
 }
 
 // AttachmentUpload is a file sent with a report. Metadata is stripped on the

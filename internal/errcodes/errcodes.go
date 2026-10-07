@@ -32,6 +32,8 @@ const (
 	CodeAttachmentUnsupported = 8108
 	CodeIdentityUnavailable   = 8109
 	CodeActAsNotAllowed       = 8110
+	CodeSettingsAccessDenied  = 8111
+	CodePublicLinkOff         = 8112
 )
 
 // Entries returns the registry entries.
@@ -67,6 +69,12 @@ func Entries() []apperr.Entry {
 		{Code: CodeActAsNotAllowed, Symbol: "ACT_AS_NOT_ALLOWED", Category: apperr.CategoryPermissionDenied,
 			Title: "act-as", Cause: "an impersonated actor called a case or named-report RPC; act-as never reaches cases or reports",
 			UserSafe: true, Message: "Cases and reports can't be opened while acting as another user."},
+		{Code: CodeSettingsAccessDenied, Symbol: "SETTINGS_ACCESS_DENIED", Category: apperr.CategoryPermissionDenied,
+			Title: "compliance settings", Cause: "the actor holds neither compliance.manage nor root",
+			UserSafe: true, Message: "Only compliance admins can see or change the Compliance settings."},
+		{Code: CodePublicLinkOff, Symbol: "PUBLIC_LINK_OFF", Category: apperr.CategoryFailedPrecondition,
+			Title: "anonymous reports", Cause: "the public report link is switched off in the Compliance settings, so new anonymous reports are refused",
+			UserSafe: true, Message: "Anonymous reporting is switched off. Sign in to report a concern with your name."},
 	}
 }
 
@@ -110,6 +118,8 @@ var (
 	errClosed        = errors.New("reporting: the case is closed")
 	errAttachment    = errors.New("reporting: unsupported attachment")
 	errImpersonating = errors.New("reporting: act-as is not allowed")
+	errNotAdmin      = errors.New("reporting: the actor may not manage the compliance settings")
+	errPublicLinkOff = errors.New("reporting: the public report link is off")
 )
 
 // StoreUnavailable codes a failed store call; op names it.
@@ -147,6 +157,12 @@ func IdentityUnavailable(cause error) error { return apperr.Coded(CodeIdentityUn
 
 // ActAsNotAllowed codes an impersonated actor on a case or report call.
 func ActAsNotAllowed() error { return apperr.Coded(CodeActAsNotAllowed, errImpersonating) }
+
+// SettingsAccessDenied codes an actor who may not manage the settings.
+func SettingsAccessDenied() error { return apperr.Coded(CodeSettingsAccessDenied, errNotAdmin) }
+
+// PublicLinkOff codes a new anonymous report while the public link is off.
+func PublicLinkOff() error { return apperr.Coded(CodePublicLinkOff, errPublicLinkOff) }
 
 type logSink struct{ l log.Logger }
 

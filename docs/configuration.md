@@ -12,7 +12,7 @@ start-up with every problem listed.
 | `GRPC_PORT` | `9090` | The gRPC listener. |
 | `PROBE_PORT` | `8080` | Plain HTTP `/livez` and `/readyz`. |
 | `IDENTITY_GRPC_ADDR` | `identity:9090` | steward-identity, asked who is an officer. |
-| `REPORTING_OFFICER_GROUPS` | empty | Comma-separated local group ids or identity provider group names whose members work cases, matched ignoring case. Empty means nobody can open a case; the service logs a warning at start-up. |
+| `REPORTING_OFFICER_GROUPS` | empty | The seed only: comma-separated local group ids or identity provider group names whose members work cases, matched ignoring case. It is stored in the Compliance settings on the first start against an empty database and ignored after that; change the officer groups through `SettingsService.UpdateSettings`. Seeded empty, nobody can open a case until a compliance admin names the groups; the service logs a warning. |
 | `REPORTING_NOTICE_DAYS_AFFECTED` | `60` | Days allowed from discovery to notify the affected people. |
 | `REPORTING_NOTICE_DAYS_REGULATOR` | `60` | Days allowed from discovery to notify a regulator. |
 | `REPORTING_NOTICE_DAYS_MEDIA` | `60` | Days allowed from discovery to notify the media. |
@@ -29,6 +29,14 @@ start-up with every problem listed.
 
 The notice days are counted from the case's discovery date, so changing a setting changes the
 deadline of notices added after it; a notice keeps the days it was added with.
+
+## Compliance settings
+
+The officer groups, the public report link, the retention period after close and the intake
+categories are not environment variables: they live in Postgres (`compliance_settings`) and are
+changed through `SettingsService` ([API](api.md#settingsservice-the-compliance-settings-c10)). The
+first start seeds them: officer groups from `REPORTING_OFFICER_GROUPS`, the public link on, 2555
+days (seven years) of retention and no intake categories.
 
 ## Image
 

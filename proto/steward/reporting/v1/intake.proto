@@ -5,6 +5,7 @@ syntax = "proto3";
 package steward.reporting.v1;
 
 import "steward/reporting/v1/reporting.proto";
+import "steward/reporting/v1/settings.proto";
 
 option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1;reportingv1";
 
@@ -13,9 +14,13 @@ option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/rep
 // them is ignored. The named calls act for the forwarded, signed-in actor and
 // only ever reach that actor's own named reports.
 service IntakeService {
+  // GetIntakeOptions returns what the report form needs before anything is
+  // filed: whether anonymous reports are taken and the intake categories.
+  rpc GetIntakeOptions(GetIntakeOptionsRequest) returns (GetIntakeOptionsResponse);
   // SubmitAnonymousReport files a report with no name, email or address and
   // returns the one-time case code. The passphrase is chosen by the reporter
-  // and stored only as a slow password hash.
+  // and stored only as a slow password hash. Refused with PUBLIC_LINK_OFF
+  // while the public report link is switched off.
   rpc SubmitAnonymousReport(SubmitAnonymousReportRequest) returns (SubmitAnonymousReportResponse);
   // CheckReport opens an anonymous report by its case code and passphrase.
   // An unknown code and a wrong passphrase get the same answer.
@@ -30,6 +35,15 @@ service IntakeService {
   rpc GetMyReport(GetMyReportRequest) returns (GetMyReportResponse);
   // ReplyToMyReport adds the signed-in reporter's message to the thread.
   rpc ReplyToMyReport(ReplyToMyReportRequest) returns (ReplyToMyReportResponse);
+}
+
+message GetIntakeOptionsRequest {}
+
+message GetIntakeOptionsResponse {
+  // False while the public report link is switched off: new anonymous
+  // reports are refused.
+  bool anonymous_reports_open = 1;
+  repeated IntakeCategory categories = 2;
 }
 
 message SubmitAnonymousReportRequest {
