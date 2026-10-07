@@ -121,6 +121,7 @@ type Case struct {
 	DiscoveredOn      time.Time
 	Outcome           domain.Outcome
 	ClosedAt          *time.Time
+	LegalHold         bool
 	Attachments       []Attachment
 	Thread            []Message
 	Notes             []Note
@@ -353,10 +354,10 @@ func (s *Store) Get(ctx context.Context, id string) (Case, error) {
 	var kinds []string
 	err := q.QueryRow(ctx, `SELECT id, case_code, kind, status, what_happened, occurred, location, information_kinds,
 			still_happening, coalesce(reporter_user_id, ''), coalesce(assignee_user_id, ''), received_at, discovered_on,
-			outcome, closed_at, category
+			outcome, closed_at, category, EXISTS (SELECT 1 FROM case_legal_holds h WHERE h.case_id = cases.id)
 		FROM cases WHERE id = $1`, id).Scan(&c.ID, &c.CaseCode, &kind, &status, &c.Details.WhatHappened, &c.Details.Occurred,
 		&c.Details.Location, &kinds, &still, &c.ReporterUserID, &c.AssigneeUserID, &c.ReceivedAt, &c.DiscoveredOn,
-		&outcome, &c.ClosedAt, &c.Details.Category)
+		&outcome, &c.ClosedAt, &c.Details.Category, &c.LegalHold)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Case{}, ErrNotFound
 	}

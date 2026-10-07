@@ -1,6 +1,6 @@
 # API
 
-Three gRPC services in `proto/steward/reporting/v1`. The gateway is the only caller.
+Four gRPC services in `proto/steward/reporting/v1`. The gateway is the only caller.
 
 ## IntakeService: the reporter's side
 
@@ -49,7 +49,7 @@ admins are not officers unless they are in one of those groups, and act-as is re
 | RPC | What |
 | --- | --- |
 | `ListCases` | The queue, newest first, filtered by status and assignee, with the count per status over every case and each case's next deadline. |
-| `GetCase` | The report, attachments, thread, internal notes, latest assessment, notices and close-out. |
+| `GetCase` | The report, attachments, thread, internal notes, latest assessment, notices and close-out, and whether the case is under a legal hold. |
 | `GetAttachment` | A stored attachment's bytes. |
 | `PostMessage` | Writes to the reporter's thread; the case moves to "Needs reporter reply". |
 | `AddNote` | An internal note. |
@@ -80,6 +80,22 @@ The first start on an empty database stores the defaults: the officer groups fro
 `REPORTING_OFFICER_GROUPS`, the public link on, seven years' retention and no intake categories.
 After that the variable is ignored and the stored settings win. A change applies from the next call.
 
+## LegalHoldService: legal holds and the retention purge
+
+A closed case is purged, with every row and attachment that belongs to it, once the retention
+period in the settings has passed since it closed. Open cases are never purged. A case under a legal
+hold is never purged, however long ago it closed, and the schema itself refuses to delete one.
+
+| RPC | What |
+| --- | --- |
+| `PlaceLegalHold` | Puts a case under a legal hold. A case already held keeps its first hold. |
+| `ReleaseLegalHold` | Lifts the hold (`CASE_NOT_FOUND` when there is none); the next purge may then take the case. |
+| `ListLegalHolds` | Every held case id, with who placed the hold and when. |
+
+The same admins as the settings (`compliance.manage` or root) place and release holds, by case id:
+they don't have to be officers, and nothing here reads or returns case content. Act-as is refused,
+and refusals are audited as `legal_hold.access_refused`. Officers see the hold on `GetCase`.
+
 ## Audit events
 
 Every view and change publishes a `steward.audit.v1.AuditEvent` (tier `audit`) through the
@@ -93,13 +109,18 @@ go-outbox table `audit_outbox`, in the same transaction as the change.
 | `case.viewed`, `case.attachment_viewed`, `case.message_posted`, `case.note_added`, `case.assigned`, `case.status_changed`, `case.discovery_date_set`, `case.assessment_recorded`, `case.notice_added`, `case.notice_updated`, `case.closed` | the officer | `case:<id>` |
 | `case.access_refused` | the refused user (the real user during act-as) | `case:<id>` when the call named one |
 | `settings.read`, `settings.updated` | the settings admin | none |
+| `legal_hold.placed`, `legal_hold.released` | the settings admin | `case:<id>` |
+| `legal_hold.listed` | the settings admin | none |
+| `legal_hold.access_refused` | the refused user (the real user during act-as) | `case:<id>` when the call named one |
+| `case.purged` | none | `case:<id>` |
 | `settings.access_refused` | the refused user (the real user during act-as) | none |
 | `reporting.call.refused` | none | `method:<full method>` |
 
 Audit readers are not the officer group, so no event carries report text, notes, messages,
 reasons or the case code, and reporter-side events name no actor, a named reporter included.
 Attributes carry only kinds, counts, statuses, decisions, outcomes and ids; `settings.updated`
-carries the number of officer groups and categories, the public link switch and the retention days.
+carries the number of officer groups and categories, the public link switch and the retention days,
+and `case.purged` carries only the retention days it was purged under.
 
 ## Errors
 

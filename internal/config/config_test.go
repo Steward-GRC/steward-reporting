@@ -5,6 +5,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -113,4 +114,27 @@ func TestLoadTokenFile(t *testing.T) {
 	c, err := Load(env(m))
 	require.NoError(t, err)
 	require.Equal(t, "/run/token", c.TokenFile)
+}
+
+func TestLoadPurgeInterval(t *testing.T) {
+	c, err := Load(env(required()))
+	require.NoError(t, err)
+	require.Equal(t, time.Hour, c.PurgeInterval, "the purge runs hourly by default")
+
+	m := required()
+	m["REPORTING_PURGE_INTERVAL"] = "15m"
+	c, err = Load(env(m))
+	require.NoError(t, err)
+	require.Equal(t, 15*time.Minute, c.PurgeInterval)
+
+	m["REPORTING_PURGE_INTERVAL"] = "off"
+	c, err = Load(env(m))
+	require.NoError(t, err)
+	require.Zero(t, c.PurgeInterval, "off pauses the purge")
+
+	for _, bad := range []string{"soon", "0s", "-1h", "30s"} {
+		m["REPORTING_PURGE_INTERVAL"] = bad
+		_, err = Load(env(m))
+		require.ErrorContains(t, err, "REPORTING_PURGE_INTERVAL", bad)
+	}
 }

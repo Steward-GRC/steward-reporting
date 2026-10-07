@@ -51,38 +51,35 @@ type Settings struct {
 // NewSettings returns the Compliance settings service.
 func NewSettings(d Deps) *Settings { return &Settings{d: d} }
 
-// admin returns the calling settings admin, or the coded refusal. A refusal
-// of a known actor is audited.
-func (s *Settings) admin(ctx context.Context) (string, error) {
+// settingsAdmin returns the calling settings admin, or the coded refusal. A
+// refusal of a known actor is audited as refusedAction.
+func (d Deps) settingsAdmin(ctx context.Context, refusedAction, caseID string) (string, error) {
+	refuse := func(who string, cause error) error {
+		d.Log.Ctx(ctx).Warn("settings admin call refused", log.F("user_id", who), log.F("action", refusedAction))
+		if err := d.inTx(ctx, func(ctx context.Context) error { return d.emit(ctx, refusedAction, who, caseID, nil) }); err != nil {
+			return err
+		}
+		return cause
+	}
 	who, err := signedIn(ctx)
 	if isCode(err, errcodes.CodeActAsNotAllowed) {
-		return "", s.refused(ctx, realUser(ctx), err)
+		return "", refuse(realUser(ctx), err)
 	}
 	if err != nil {
 		return "", err
 	}
-	if err := s.d.Officers.SettingsAdmin(ctx, who); err != nil {
+	if err := d.Officers.SettingsAdmin(ctx, who); err != nil {
 		if isCode(err, errcodes.CodeSettingsAccessDenied) {
-			return "", s.refused(ctx, who, err)
+			return "", refuse(who, err)
 		}
 		return "", err
 	}
 	return who, nil
 }
 
-func (s *Settings) refused(ctx context.Context, who string, cause error) error {
-	s.d.Log.Ctx(ctx).Warn("settings call refused", log.F("user_id", who))
-	if err := s.d.inTx(ctx, func(ctx context.Context) error {
-		return s.d.emit(ctx, "settings.access_refused", who, "", nil)
-	}); err != nil {
-		return err
-	}
-	return cause
-}
-
 // GetSettings returns the settings as they stand.
 func (s *Settings) GetSettings(ctx context.Context, _ *reportingv1.GetSettingsRequest) (*reportingv1.GetSettingsResponse, error) {
-	who, err := s.admin(ctx)
+	who, err := s.d.settingsAdmin(ctx, "settings.access_refused", "")
 	if err != nil {
 		return nil, errcodes.Error(ctx, err)
 	}
@@ -102,7 +99,7 @@ func (s *Settings) GetSettings(ctx context.Context, _ *reportingv1.GetSettingsRe
 
 // UpdateSettings replaces every setting at once.
 func (s *Settings) UpdateSettings(ctx context.Context, req *reportingv1.UpdateSettingsRequest) (*reportingv1.UpdateSettingsResponse, error) {
-	who, err := s.admin(ctx)
+	who, err := s.d.settingsAdmin(ctx, "settings.access_refused", "")
 	if err != nil {
 		return nil, errcodes.Error(ctx, err)
 	}

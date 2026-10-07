@@ -196,7 +196,7 @@ func caseToProto(c store.Case) *reportingv1.Case {
 	out := &reportingv1.Case{
 		Id: c.ID, CaseCode: c.CaseCode, Kind: kinds.proto(c.Kind), Status: statuses.proto(c.Status), Details: detailsToProto(c.Details),
 		ReporterUserId: c.ReporterUserID, AssigneeUserId: c.AssigneeUserID, ReceivedAt: ts(c.ReceivedAt),
-		DiscoveredOn: c.DiscoveredOn.Format(domain.DateLayout), Outcome: outcomes.proto(c.Outcome),
+		DiscoveredOn: c.DiscoveredOn.Format(domain.DateLayout), Outcome: outcomes.proto(c.Outcome), LegalHold: c.LegalHold,
 	}
 	if c.ClosedAt != nil {
 		out.ClosedAt = ts(*c.ClosedAt)

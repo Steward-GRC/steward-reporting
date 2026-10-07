@@ -39,4 +39,7 @@ var CallerPolicy = workloadauth.Policy{
 	reportingv1.CaseService_CloseCase_FullMethodName:               {CallerGateway: workloadauth.OnBehalf},
 	reportingv1.SettingsService_GetSettings_FullMethodName:         {CallerGateway: workloadauth.OnBehalf},
 	reportingv1.SettingsService_UpdateSettings_FullMethodName:      {CallerGateway: workloadauth.OnBehalf},
+	reportingv1.LegalHoldService_PlaceLegalHold_FullMethodName:     {CallerGateway: workloadauth.OnBehalf},
+	reportingv1.LegalHoldService_ReleaseLegalHold_FullMethodName:   {CallerGateway: workloadauth.OnBehalf},
+	reportingv1.LegalHoldService_ListLegalHolds_FullMethodName:     {CallerGateway: workloadauth.OnBehalf},
 }

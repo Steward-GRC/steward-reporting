@@ -266,4 +266,6 @@ message Case {
   Outcome outcome = 15;
   repeated CorrectiveAction corrective_actions = 16;
   google.protobuf.Timestamp closed_at = 17;
+  // True while the case is under a legal hold: it is never purged.
+  bool legal_hold = 18;
 }

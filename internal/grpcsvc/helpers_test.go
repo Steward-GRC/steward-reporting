@@ -94,6 +94,8 @@ type env struct {
 	intake reportingv1.IntakeServiceClient
 	cases  reportingv1.CaseServiceClient
 	sets   reportingv1.SettingsServiceClient
+	holds  reportingv1.LegalHoldServiceClient
+	deps   grpcsvc.Deps
 	store  *store.Store
 	users  *directory
 	logs   *syncBuffer
@@ -186,6 +188,7 @@ func newEnv(t *testing.T) *env {
 		NoticeDays: domain.NoticeDays{Affected: 60, Regulator: 60, Media: 60, Other: 30},
 		Now:        func() time.Time { return e.now }, Log: lg,
 	}
+	e.deps = deps
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -195,6 +198,7 @@ func newEnv(t *testing.T) *env {
 			reportingv1.RegisterIntakeServiceServer(s, grpcsvc.NewIntake(deps))
 			reportingv1.RegisterCaseServiceServer(s, grpcsvc.NewCases(deps))
 			reportingv1.RegisterSettingsServiceServer(s, grpcsvc.NewSettings(deps))
+			reportingv1.RegisterLegalHoldServiceServer(s, grpcsvc.NewLegalHolds(deps))
 		})
 	}()
 	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -210,6 +214,7 @@ func newEnv(t *testing.T) *env {
 	e.intake = reportingv1.NewIntakeServiceClient(conn)
 	e.cases = reportingv1.NewCaseServiceClient(conn)
 	e.sets = reportingv1.NewSettingsServiceClient(conn)
+	e.holds = reportingv1.NewLegalHoldServiceClient(conn)
 	return e
 }
 

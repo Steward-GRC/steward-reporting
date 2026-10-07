@@ -30,6 +30,24 @@ is reused for 5 seconds.
 - Never point liveness at a dependency: an outage would restart every replica.
 - Readiness recovers on its own once the dependency is back.
 
+## Retention purge
+
+Every replica runs the purge every `REPORTING_PURGE_INTERVAL` (hourly by default, and once at
+start-up), but only one purges at a time: each batch of up to 100 cases runs in a transaction
+holding the advisory lock `steward-reporting:retention-purge`, and a replica that can't take it
+skips the run. A closed case is purged once the retention period in the Compliance settings
+(`GetSettings`, seven years by default) has passed since it closed. Open cases and held cases are
+never purged.
+
+- **Read it:** each run logs `retention purge done` with the count, the retention days, the cutoff
+  and the duration, and each purged case logs `case purged` with its id. The audit log holds a
+  `case.purged` event per case. A failed run logs `retention purge failed` and retries on the next
+  interval.
+- **Keep one case:** place a legal hold on it (`LegalHoldService.PlaceLegalHold`); release the hold
+  to let the purge take it.
+- **Pause it:** set `REPORTING_PURGE_INTERVAL=off` and restart. Every replica then logs a warning at
+  start-up. Raising the retention period in the settings also keeps cases longer, from the next run.
+
 ## Common problems
 
 | Symptom | Look at |

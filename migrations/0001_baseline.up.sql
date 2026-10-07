@@ -125,3 +125,14 @@ CREATE TABLE compliance_settings (
     updated_at          timestamptz NOT NULL DEFAULT now(),
     updated_by_user_id  text
 );
+
+-- A case under a legal hold is never purged. RESTRICT makes the database
+-- refuse to delete a held case, whatever deletes it.
+CREATE TABLE case_legal_holds (
+    case_id           uuid        PRIMARY KEY REFERENCES cases (id) ON DELETE RESTRICT,
+    placed_by_user_id text        NOT NULL,
+    placed_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- The retention purge looks for closed cases by close date.
+CREATE INDEX cases_closed_idx ON cases (closed_at) WHERE status = 'closed';
