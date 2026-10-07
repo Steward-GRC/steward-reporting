@@ -36,6 +36,7 @@ import (
 	"github.com/Steward-GRC/steward-reporting/internal/domain"
 	"github.com/Steward-GRC/steward-reporting/internal/grpcsvc"
 	"github.com/Steward-GRC/steward-reporting/internal/readiness"
+	"github.com/Steward-GRC/steward-reporting/internal/retention"
 	"github.com/Steward-GRC/steward-reporting/internal/server"
 	"github.com/Steward-GRC/steward-reporting/internal/store"
 	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
@@ -137,6 +138,13 @@ func run(ctx context.Context, logger log.Logger) error {
 		NoticeDays: cfg.NoticeDays, Log: logger,
 	}
 
+	if cfg.PurgeInterval > 0 {
+		purger := &retention.Purger{DB: db, Store: st, Audit: auditor, Log: logger}
+		go purger.Run(ctx, cfg.PurgeInterval)
+	} else {
+		logger.Warn("the retention purge is paused (REPORTING_PURGE_INTERVAL=off): closed cases are kept past their retention period")
+	}
+
 	readyDeps := readiness.Deps{Postgres: readiness.PostgresDB(db), Broker: conn, Identity: readiness.GRPCPeer(identityConn)}
 	serveOpts := server.Options{Policy: grpcsvc.CallerPolicy, OnDeny: auditDenial(auditor, logger)}
 	if cfg.WorkloadAuth {
@@ -179,6 +187,7 @@ func run(ctx context.Context, logger log.Logger) error {
 		reportingv1.RegisterIntakeServiceServer(s, grpcsvc.NewIntake(deps))
 		reportingv1.RegisterCaseServiceServer(s, grpcsvc.NewCases(deps))
 		reportingv1.RegisterSettingsServiceServer(s, grpcsvc.NewSettings(deps))
+		reportingv1.RegisterLegalHoldServiceServer(s, grpcsvc.NewLegalHolds(deps))
 	})
 	cancel()
 	return errors.Join(err, <-probesDone)

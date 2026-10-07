@@ -17,6 +17,7 @@ start-up with every problem listed.
 | `REPORTING_NOTICE_DAYS_REGULATOR` | `60` | Days allowed from discovery to notify a regulator. |
 | `REPORTING_NOTICE_DAYS_MEDIA` | `60` | Days allowed from discovery to notify the media. |
 | `REPORTING_NOTICE_DAYS_OTHER` | `60` | Days allowed from discovery for any other notice. |
+| `REPORTING_PURGE_INTERVAL` | `1h` | How often the retention purge runs (a Go duration, at least `1m`), or `off` to pause it. |
 | `WORKLOAD_OIDC_ISSUER` | required | The cluster's service-account token issuer (https). Without it the service won't start unless `WORKLOAD_AUTH=disabled`. |
 | `WORKLOAD_OIDC_JWKS_URL` | discovered | Overrides the issuer's JWKS URL (https). |
 | `WORKLOAD_OIDC_CA_FILE`, `WORKLOAD_OIDC_BEARER_FILE` | empty | A CA bundle and a bearer token for fetching the JWKS. |

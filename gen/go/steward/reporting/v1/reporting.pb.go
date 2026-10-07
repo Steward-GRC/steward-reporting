@@ -1628,8 +1628,10 @@ type Case struct {
 	Outcome           Outcome                `protobuf:"varint,15,opt,name=outcome,proto3,enum=steward.reporting.v1.Outcome" json:"outcome,omitempty"`
 	CorrectiveActions []*CorrectiveAction    `protobuf:"bytes,16,rep,name=corrective_actions,json=correctiveActions,proto3" json:"corrective_actions,omitempty"`
 	ClosedAt          *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=closed_at,json=closedAt,proto3" json:"closed_at,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// True while the case is under a legal hold: it is never purged.
+	LegalHold     bool `protobuf:"varint,18,opt,name=legal_hold,json=legalHold,proto3" json:"legal_hold,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Case) Reset() {
@@ -1781,6 +1783,13 @@ func (x *Case) GetClosedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Case) GetLegalHold() bool {
+	if x != nil {
+		return x.LegalHold
+	}
+	return false
+}
+
 var File_steward_reporting_v1_reporting_proto protoreflect.FileDescriptor
 
 const file_steward_reporting_v1_reporting_proto_rawDesc = "" +
@@ -1863,7 +1872,7 @@ const file_steward_reporting_v1_reporting_proto_rawDesc = "" +
 	"\x10assignee_user_id\x18\x06 \x01(\tR\x0eassigneeUserId\x12;\n" +
 	"\vreceived_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"receivedAt\x12#\n" +
-	"\rnext_deadline\x18\b \x01(\tR\fnextDeadline\"\x92\a\n" +
+	"\rnext_deadline\x18\b \x01(\tR\fnextDeadline\"\xb1\a\n" +
 	"\x04Case\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tcase_code\x18\x02 \x01(\tR\bcaseCode\x124\n" +
@@ -1885,7 +1894,9 @@ const file_steward_reporting_v1_reporting_proto_rawDesc = "" +
 	"\anotices\x18\x0e \x03(\v2\x1c.steward.reporting.v1.NoticeR\anotices\x127\n" +
 	"\aoutcome\x18\x0f \x01(\x0e2\x1d.steward.reporting.v1.OutcomeR\aoutcome\x12U\n" +
 	"\x12corrective_actions\x18\x10 \x03(\v2&.steward.reporting.v1.CorrectiveActionR\x11correctiveActions\x127\n" +
-	"\tclosed_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt*\xda\x01\n" +
+	"\tclosed_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\x12\x1d\n" +
+	"\n" +
+	"legal_hold\x18\x12 \x01(\bR\tlegalHold*\xda\x01\n" +
 	"\n" +
 	"CaseStatus\x12\x1b\n" +
 	"\x17CASE_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +

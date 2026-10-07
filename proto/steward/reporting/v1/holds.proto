@@ -1,0 +1,52 @@
+// Copyright 2026 The Steward Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package steward.reporting.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1;reportingv1";
+
+// LegalHoldService places and releases legal holds on cases. A case under a
+// hold is never purged, however long ago it closed. Every call acts for the
+// forwarded, signed-in actor, who must hold compliance.manage or be root, and
+// is audited with the case id only; act-as is refused. Nothing here reads or
+// returns case content.
+service LegalHoldService {
+  // PlaceLegalHold puts a case under a legal hold. Placing a hold on a case
+  // already held keeps the first hold.
+  rpc PlaceLegalHold(PlaceLegalHoldRequest) returns (PlaceLegalHoldResponse);
+  // ReleaseLegalHold lifts a case's hold; the purge may then take it once its
+  // retention period has passed.
+  rpc ReleaseLegalHold(ReleaseLegalHoldRequest) returns (ReleaseLegalHoldResponse);
+  // ListLegalHolds lists every held case, newest hold first.
+  rpc ListLegalHolds(ListLegalHoldsRequest) returns (ListLegalHoldsResponse);
+}
+
+// LegalHold is one held case.
+message LegalHold {
+  string case_id = 1;
+  string placed_by_user_id = 2;
+  google.protobuf.Timestamp placed_at = 3;
+}
+
+message PlaceLegalHoldRequest {
+  string case_id = 1;
+}
+
+message PlaceLegalHoldResponse {
+  LegalHold hold = 1;
+}
+
+message ReleaseLegalHoldRequest {
+  string case_id = 1;
+}
+
+message ReleaseLegalHoldResponse {}
+
+message ListLegalHoldsRequest {}
+
+message ListLegalHoldsResponse {
+  repeated LegalHold holds = 1;
+}

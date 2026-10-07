@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Steward-GRC/steward-reporting/internal/domain"
 	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
@@ -17,6 +18,12 @@ import (
 // DefaultTokenFile is where the release mounts reporting's projected
 // service-account token.
 const DefaultTokenFile = workloadauth.DefaultTokenFile
+
+// defaultPurgeInterval is how often the retention purge runs.
+const defaultPurgeInterval = time.Hour
+
+// minPurgeInterval keeps a typo from running the purge in a tight loop.
+const minPurgeInterval = time.Minute
 
 // defaultNoticeDays is the days allowed from discovery when an adopter sets
 // none.
@@ -40,6 +47,9 @@ type Config struct {
 	OfficerGroups []string
 	// NoticeDays are the days allowed from discovery per notice recipient.
 	NoticeDays domain.NoticeDays
+	// PurgeInterval is how often the retention purge runs; zero pauses it
+	// (REPORTING_PURGE_INTERVAL=off).
+	PurgeInterval time.Duration
 	// WorkloadAuth is false only for WORKLOAD_AUTH=disabled, on local runs.
 	WorkloadAuth bool
 	// Workload verifies the callers' service-account tokens.
@@ -89,6 +99,13 @@ func Load(getenv func(string) string) (Config, error) {
 		Regulator: days("REPORTING_NOTICE_DAYS_REGULATOR"),
 		Media:     days("REPORTING_NOTICE_DAYS_MEDIA"),
 		Other:     days("REPORTING_NOTICE_DAYS_OTHER"),
+	}
+	if raw := or("REPORTING_PURGE_INTERVAL", defaultPurgeInterval.String()); raw != "off" {
+		d, err := time.ParseDuration(raw)
+		if err != nil || d < minPurgeInterval {
+			errs = append(errs, fmt.Errorf("REPORTING_PURGE_INTERVAL must be off or a duration of at least 1m, got %q", raw))
+		}
+		c.PurgeInterval = d
 	}
 	var err error
 	if c.Workload, c.WorkloadAuth, err = workloadauth.ServerConfigFromEnv(getenv); err != nil {
