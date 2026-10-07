@@ -12,6 +12,7 @@ package access
 import (
 	"context"
 	"errors"
+	"slices"
 
 	stewardauthz "github.com/Steward-GRC/steward-authz"
 
@@ -42,16 +43,29 @@ type Users interface {
 // officerRuleset names the rule set the officer groups are compiled into.
 const officerRuleset = "reporting.officers"
 
-// Checker decides officer access.
+// GroupSource returns the officer groups as they stand now.
+type GroupSource func(ctx context.Context) ([]string, error)
+
+// Checker decides officer and settings access.
 type Checker struct {
-	users     Users
-	evaluator *stewardauthz.Evaluator
+	users  Users
+	groups GroupSource
 }
 
-// New returns a checker for the given officer groups: local group ids or
+// New returns a checker for a fixed set of officer groups: local group ids or
 // identity provider group names, matched ignoring case. No groups means no
 // officers.
 func New(users Users, officerGroups []string) *Checker {
+	return NewFromSource(users, func(context.Context) ([]string, error) { return officerGroups, nil })
+}
+
+// NewFromSource returns a checker that reads the officer groups on every
+// call, so a change to them applies to the next call.
+func NewFromSource(users Users, groups GroupSource) *Checker {
+	return &Checker{users: users, groups: groups}
+}
+
+func compile(officerGroups []string) *stewardauthz.Evaluator {
 	rules := make([]stewardauthz.Rule, 0, len(officerGroups))
 	for _, g := range officerGroups {
 		rules = append(rules, stewardauthz.Rule{
@@ -59,36 +73,69 @@ func New(users Users, officerGroups []string) *Checker {
 			Grants:  map[stewardauthz.Action]stewardauthz.Grant{stewardauthz.ActionRead: stewardauthz.GrantAllow, stewardauthz.ActionAuthor: stewardauthz.GrantAllow},
 		})
 	}
-	chain := []stewardauthz.CategoryRuleset{{Name: officerRuleset, Rules: rules}}
-	return &Checker{users: users, evaluator: stewardauthz.Compile(chain)}
+	return stewardauthz.Compile([]stewardauthz.CategoryRuleset{{Name: officerRuleset, Rules: rules}})
+}
+
+// lookup returns the enabled, undeleted user, or denied when there is none.
+func (c *Checker) lookup(ctx context.Context, userID string, denied func() error) (User, error) {
+	u, err := c.users.GetUser(ctx, userID)
+	if errors.Is(err, ErrNoUser) {
+		return User{}, denied()
+	}
+	if err != nil {
+		return User{}, errcodes.IdentityUnavailable(err)
+	}
+	if !u.Enabled || u.Deleted {
+		return User{}, denied()
+	}
+	return u, nil
+}
+
+func roles(u User) []stewardauthz.Role {
+	var out []stewardauthz.Role
+	for _, r := range u.Roles {
+		if role, err := stewardauthz.ParseRole(r); err == nil {
+			out = append(out, role)
+		}
+	}
+	return out
 }
 
 // Officer returns nil when userID may work cases, CaseAccessDenied when not,
 // and IdentityUnavailable when identity can't say.
 func (c *Checker) Officer(ctx context.Context, userID string) error {
-	u, err := c.users.GetUser(ctx, userID)
-	if errors.Is(err, ErrNoUser) {
-		return errcodes.CaseAccessDenied()
-	}
+	u, err := c.lookup(ctx, userID, errcodes.CaseAccessDenied)
 	if err != nil {
-		return errcodes.IdentityUnavailable(err)
+		return err
 	}
-	if !u.Enabled || u.Deleted {
-		return errcodes.CaseAccessDenied()
+	groups, err := c.groups(ctx)
+	if err != nil {
+		return err
 	}
 	subject := stewardauthz.Subject{
 		UserID: u.ID,
 		Groups: append(append([]string{}, u.Groups...), u.IdpGroups...),
 		Root:   u.Root,
+		Roles:  roles(u),
 	}
-	for _, r := range u.Roles {
-		if role, err := stewardauthz.ParseRole(r); err == nil {
-			subject.Roles = append(subject.Roles, role)
-		}
-	}
-	res := c.evaluator.Resolve(ctx, subject)
+	res := compile(groups).Resolve(ctx, subject)
 	if res.Read.Reason != stewardauthz.ReasonRuleAllow || res.Author.Reason != stewardauthz.ReasonRuleAllow {
 		return errcodes.CaseAccessDenied()
 	}
 	return nil
+}
+
+// SettingsAdmin returns nil when userID may read and change the Compliance
+// settings: a holder of compliance.manage (compliance admins, and site admins
+// through the catalog's wildcard) or root. SettingsAccessDenied when not, and
+// IdentityUnavailable when identity can't say.
+func (c *Checker) SettingsAdmin(ctx context.Context, userID string) error {
+	u, err := c.lookup(ctx, userID, errcodes.SettingsAccessDenied)
+	if err != nil {
+		return err
+	}
+	if u.Root || slices.Contains(stewardauthz.RolePermissions(roles(u)...), stewardauthz.ComplianceManage) {
+		return nil
+	}
+	return errcodes.SettingsAccessDenied()
 }

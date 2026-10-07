@@ -23,6 +23,7 @@ func methodsOf(sd protoreflect.ServiceDescriptor) []string {
 }
 
 var anonymousMethods = map[string]bool{
+	reportingv1.IntakeService_GetIntakeOptions_FullMethodName:      true,
 	reportingv1.IntakeService_SubmitAnonymousReport_FullMethodName: true,
 	reportingv1.IntakeService_CheckReport_FullMethodName:           true,
 	reportingv1.IntakeService_ReplyToReport_FullMethodName:         true,
@@ -34,7 +35,8 @@ var anonymousMethods = map[string]bool{
 func TestCallerPolicyPerMethod(t *testing.T) {
 	all := append(methodsOf(reportingv1.File_steward_reporting_v1_intake_proto.Services().Get(0)),
 		methodsOf(reportingv1.File_steward_reporting_v1_cases_proto.Services().Get(0))...)
-	require.Len(t, all, 19)
+	all = append(all, methodsOf(reportingv1.File_steward_reporting_v1_settings_proto.Services().Get(0))...)
+	require.Len(t, all, 22)
 	for _, method := range all {
 		t.Run(method, func(t *testing.T) {
 			acc, ok := grpcsvc.CallerPolicy.Lookup(method, grpcsvc.CallerGateway)

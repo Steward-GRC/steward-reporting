@@ -1,0 +1,62 @@
+// Copyright 2026 The Steward Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package steward.reporting.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1;reportingv1";
+
+// SettingsService holds the Compliance settings (C10). Both calls act for the
+// forwarded, signed-in actor, who must hold compliance.manage or be root, and
+// both are audited with no case content. Act-as is refused.
+service SettingsService {
+  // GetSettings returns the settings as they stand.
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
+  // UpdateSettings replaces every setting at once and returns them as saved.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+}
+
+// IntakeCategory is one category a reporter picks from.
+message IntakeCategory {
+  // Lower-case letters, digits, '-' and '_', starting with a letter or digit;
+  // up to 40 characters. Stored on the case.
+  string key = 1;
+  // What the form shows; up to 200 characters.
+  string label = 2;
+}
+
+// ComplianceSettings are the Compliance settings.
+message ComplianceSettings {
+  // Local group ids or identity provider group names whose members work
+  // cases, matched ignoring case. Empty means nobody can open a case.
+  repeated string officer_groups = 1;
+  // Off, new anonymous reports are refused; existing ones can still be
+  // checked and replied to.
+  bool public_link_enabled = 2;
+  // Days a closed case is kept after it closed, 30 to 36500.
+  int32 retention_days = 3;
+  // The intake categories, in form order. Empty means the form asks for none;
+  // otherwise every new report names one.
+  repeated IntakeCategory intake_categories = 4;
+  // Read only: when the settings were last saved or seeded, and who saved
+  // them; the user id is empty for the seed.
+  google.protobuf.Timestamp updated_at = 5;
+  string updated_by_user_id = 6;
+}
+
+message GetSettingsRequest {}
+
+message GetSettingsResponse {
+  ComplianceSettings settings = 1;
+}
+
+message UpdateSettingsRequest {
+  // updated_at and updated_by_user_id are ignored.
+  ComplianceSettings settings = 1;
+}
+
+message UpdateSettingsResponse {
+  ComplianceSettings settings = 1;
+}

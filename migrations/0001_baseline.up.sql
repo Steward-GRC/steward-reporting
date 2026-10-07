@@ -16,6 +16,7 @@ CREATE TABLE cases (
     location          text        NOT NULL DEFAULT '',
     information_kinds text[]      NOT NULL DEFAULT '{}',
     still_happening   text        NOT NULL DEFAULT '' CHECK (still_happening IN ('', 'yes', 'no', 'not_sure')),
+    category          text        NOT NULL DEFAULT '',
     assignee_user_id  text,
     received_at       timestamptz NOT NULL DEFAULT now(),
     discovered_on     date        NOT NULL,
@@ -111,4 +112,16 @@ CREATE TABLE case_corrective_actions (
     description text NOT NULL,
     policy_id   uuid,
     UNIQUE (case_id, position)
+);
+
+-- The Compliance settings (C10): one row, seeded at start-up from
+-- REPORTING_OFFICER_GROUPS and changed only through SettingsService after.
+CREATE TABLE compliance_settings (
+    id                  boolean     PRIMARY KEY DEFAULT true CHECK (id),
+    officer_groups      text[]      NOT NULL DEFAULT '{}',
+    public_link_enabled boolean     NOT NULL DEFAULT true,
+    retention_days      int         NOT NULL CHECK (retention_days BETWEEN 30 AND 36500),
+    intake_categories   jsonb       NOT NULL DEFAULT '[]',
+    updated_at          timestamptz NOT NULL DEFAULT now(),
+    updated_by_user_id  text
 );

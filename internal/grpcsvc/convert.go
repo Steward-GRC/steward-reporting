@@ -131,14 +131,14 @@ func detailsFromProto(d *reportingv1.ReportDetails) domain.Details {
 	}
 	return domain.Details{
 		WhatHappened: d.GetWhatHappened(), Occurred: d.GetOccurred(), Location: d.GetLocation(),
-		InformationKinds: infoFromProto(d.GetInformationKinds()), StillHappening: still,
+		InformationKinds: infoFromProto(d.GetInformationKinds()), StillHappening: still, Category: d.GetCategory(),
 	}
 }
 
 func detailsToProto(d domain.Details) *reportingv1.ReportDetails {
 	return &reportingv1.ReportDetails{
 		WhatHappened: d.WhatHappened, Occurred: d.Occurred, Location: d.Location,
-		InformationKinds: infoToProto(d.InformationKinds), StillHappening: answers.proto(d.StillHappening),
+		InformationKinds: infoToProto(d.InformationKinds), StillHappening: answers.proto(d.StillHappening), Category: d.Category,
 	}
 }
 

@@ -209,11 +209,11 @@ func (s *Store) Create(ctx context.Context, nc NewCase) (string, error) {
 	err := InTx(ctx, s.db, func(ctx context.Context) error {
 		q := s.q(ctx)
 		err := q.QueryRow(ctx, `INSERT INTO cases (case_code, kind, reporter_user_id, passphrase_hash, what_happened,
-				occurred, location, information_kinds, still_happening, discovered_on, received_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, coalesce($11, now())) RETURNING id`,
+				occurred, location, information_kinds, still_happening, discovered_on, received_at, category)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, coalesce($11, now()), $12) RETURNING id`,
 			nc.CaseCode, string(nc.Kind), nullable(nc.ReporterUserID), nullable(nc.PassphraseHash), nc.Details.WhatHappened,
 			nc.Details.Occurred, nc.Details.Location, kindsToText(nc.Details.InformationKinds), string(nc.Details.StillHappening),
-			nc.DiscoveredOn, nullableTime(nc.ReceivedAt)).Scan(&id)
+			nc.DiscoveredOn, nullableTime(nc.ReceivedAt), nc.Details.Category).Scan(&id)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "cases_case_code_key" {
 			return ErrCaseCodeTaken
@@ -246,14 +246,14 @@ func (s *Store) FindAnonymous(ctx context.Context, code string) (id, passphraseH
 	return id, passphraseHash, nil
 }
 
-const reporterCols = `id, case_code, status, what_happened, occurred, location, information_kinds, still_happening, received_at`
+const reporterCols = `id, case_code, status, what_happened, occurred, location, information_kinds, still_happening, received_at, category`
 
 func scanReporter(row pgx.Row) (ReporterCase, error) {
 	var rc ReporterCase
 	var status, still string
 	var kinds []string
 	err := row.Scan(&rc.ID, &rc.CaseCode, &status, &rc.Details.WhatHappened, &rc.Details.Occurred, &rc.Details.Location,
-		&kinds, &still, &rc.ReceivedAt)
+		&kinds, &still, &rc.ReceivedAt, &rc.Details.Category)
 	rc.Status, rc.Details.StillHappening, rc.Details.InformationKinds = domain.Status(status), domain.Answer(still), textToKinds(kinds)
 	return rc, err
 }
@@ -353,10 +353,10 @@ func (s *Store) Get(ctx context.Context, id string) (Case, error) {
 	var kinds []string
 	err := q.QueryRow(ctx, `SELECT id, case_code, kind, status, what_happened, occurred, location, information_kinds,
 			still_happening, coalesce(reporter_user_id, ''), coalesce(assignee_user_id, ''), received_at, discovered_on,
-			outcome, closed_at
+			outcome, closed_at, category
 		FROM cases WHERE id = $1`, id).Scan(&c.ID, &c.CaseCode, &kind, &status, &c.Details.WhatHappened, &c.Details.Occurred,
 		&c.Details.Location, &kinds, &still, &c.ReporterUserID, &c.AssigneeUserID, &c.ReceivedAt, &c.DiscoveredOn,
-		&outcome, &c.ClosedAt)
+		&outcome, &c.ClosedAt, &c.Details.Category)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Case{}, ErrNotFound
 	}

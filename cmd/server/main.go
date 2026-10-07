@@ -33,6 +33,7 @@ import (
 	"github.com/Steward-GRC/steward-reporting/internal/access"
 	"github.com/Steward-GRC/steward-reporting/internal/audit"
 	"github.com/Steward-GRC/steward-reporting/internal/config"
+	"github.com/Steward-GRC/steward-reporting/internal/domain"
 	"github.com/Steward-GRC/steward-reporting/internal/grpcsvc"
 	"github.com/Steward-GRC/steward-reporting/internal/readiness"
 	"github.com/Steward-GRC/steward-reporting/internal/server"
@@ -117,12 +118,22 @@ func run(ctx context.Context, logger log.Logger) error {
 		return fmt.Errorf("identity dial: %w", err)
 	}
 	defer func() { _ = identityConn.Close() }()
-	if len(cfg.OfficerGroups) == 0 {
-		logger.Warn("REPORTING_OFFICER_GROUPS is not set: nobody can open cases")
+	st := store.New(db)
+	seeded, err := st.SeedSettings(ctx, domain.DefaultSettings(cfg.OfficerGroups))
+	if err != nil {
+		return fmt.Errorf("settings: %w", err)
+	}
+	if seeded {
+		logger.Info("compliance settings seeded", log.F("officer_groups", len(cfg.OfficerGroups)))
+		if len(cfg.OfficerGroups) == 0 {
+			logger.Warn("REPORTING_OFFICER_GROUPS is not set: nobody can open cases until a compliance admin names the officer groups")
+		}
+	} else {
+		logger.Info("compliance settings already stored; REPORTING_OFFICER_GROUPS is ignored")
 	}
 	deps := grpcsvc.Deps{
-		DB: db, Store: store.New(db), Audit: auditor,
-		Officers:   access.New(access.IdentityUsers(identityv1.NewIdentityReadServiceClient(identityConn)), cfg.OfficerGroups),
+		DB: db, Store: st, Audit: auditor,
+		Officers:   access.NewFromSource(access.IdentityUsers(identityv1.NewIdentityReadServiceClient(identityConn)), grpcsvc.OfficerGroups(st)),
 		NoticeDays: cfg.NoticeDays, Log: logger,
 	}
 
@@ -167,6 +178,7 @@ func run(ctx context.Context, logger log.Logger) error {
 	err = server.Serve(ctx, grpcLis, logger, serveOpts, func(s *grpc.Server) {
 		reportingv1.RegisterIntakeServiceServer(s, grpcsvc.NewIntake(deps))
 		reportingv1.RegisterCaseServiceServer(s, grpcsvc.NewCases(deps))
+		reportingv1.RegisterSettingsServiceServer(s, grpcsvc.NewSettings(deps))
 	})
 	cancel()
 	return errors.Join(err, <-probesDone)

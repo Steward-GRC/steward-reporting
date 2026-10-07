@@ -49,6 +49,8 @@ type Details struct {
 	Location         string
 	InformationKinds []InformationKind
 	StillHappening   Answer
+	// Category is the intake category key; checked against the settings.
+	Category string
 }
 
 // Normalize trims and checks the details, and drops repeated kinds.
@@ -56,6 +58,7 @@ func (d Details) Normalize() (Details, error) {
 	d.WhatHappened = strings.TrimSpace(d.WhatHappened)
 	d.Occurred = strings.TrimSpace(d.Occurred)
 	d.Location = strings.TrimSpace(d.Location)
+	d.Category = strings.TrimSpace(d.Category)
 	switch {
 	case d.WhatHappened == "" || utf8.RuneCountInString(d.WhatHappened) > MaxWhatHappenedLen:
 		return Details{}, errcodes.Invalid("what_happened")
@@ -63,6 +66,8 @@ func (d Details) Normalize() (Details, error) {
 		return Details{}, errcodes.Invalid("occurred")
 	case utf8.RuneCountInString(d.Location) > MaxShortFieldLen:
 		return Details{}, errcodes.Invalid("location")
+	case len(d.Category) > MaxCategoryKeyLen:
+		return Details{}, errcodes.Invalid("category")
 	}
 	kinds, err := checkKinds(d.InformationKinds, "information_kinds")
 	if err != nil {

@@ -4,8 +4,9 @@
 
 The service applies the baseline migration and the audit outbox's own migration, connects to
 Postgres and RabbitMQ, starts the audit relay, dials identity and serves gRPC. A bad setting stops
-it with every problem listed. With `REPORTING_OFFICER_GROUPS` empty it starts, warns, and refuses
-every case call.
+it with every problem listed. On an empty database it seeds the Compliance settings from
+`REPORTING_OFFICER_GROUPS`; seeded with no officer groups it starts, warns, and refuses every case
+call until a compliance admin names them. Later starts log that the stored settings are kept.
 
 ## Probes
 
@@ -33,7 +34,9 @@ is reused for 5 seconds.
 
 | Symptom | Look at |
 | --- | --- |
-| `CASE_ACCESS_DENIED` for an officer | `REPORTING_OFFICER_GROUPS`, and the user's groups in identity: a local group id or an identity provider group name, matched ignoring case. A disabled or deleted account is never an officer. |
+| `CASE_ACCESS_DENIED` for an officer | The officer groups in the Compliance settings (`GetSettings`; `REPORTING_OFFICER_GROUPS` is only the first seed), and the user's groups in identity: a local group id or an identity provider group name, matched ignoring case. A disabled or deleted account is never an officer. |
+| `PUBLIC_LINK_OFF` on an anonymous report | The public link is switched off in the Compliance settings. |
+| `REPORT_INVALID` with field `category` | The report's intake category isn't one configured in the settings, or one is required. |
 | `REPORT_SIGN_IN_REQUIRED` on every named or case call | The gateway isn't passing the user: check its service account is `steward/steward-gateway` and listed in `WORKLOAD_ALLOWED_SERVICEACCOUNTS`. |
 | `Unauthenticated` or `PermissionDenied` with no error code | Service-to-service authentication refused the call; `reporting.call.refused` audit events say who and why. |
 | `Unavailable: workload verifier unavailable` | The JWKS hasn't loaded, so every call that needs a token is refused and `workloadauth` reports down until a fetch succeeds. A `status 401` in the `JWKS refresh failed` log line means the API server refused `WORKLOAD_OIDC_BEARER_FILE`: it must hold a token with the API server's own audience, not the `steward` caller token. |

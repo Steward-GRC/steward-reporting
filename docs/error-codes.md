@@ -17,3 +17,5 @@ the caller; every other code is sent as `Code N: Internal Error`.
 | 8108 | `ATTACHMENT_UNSUPPORTED` | attachments | an attachment is not a JPEG, PNG, GIF or plain text file, can't be decoded, or is too large; attachment is its 1-based number | yes |
 | 8109 | `IDENTITY_UNAVAILABLE` | officer check | identity could not be asked whether the actor is an officer, so the call is refused | no |
 | 8110 | `ACT_AS_NOT_ALLOWED` | act-as | an impersonated actor called a case or named-report RPC; act-as never reaches cases or reports | yes |
+| 8111 | `SETTINGS_ACCESS_DENIED` | compliance settings | the actor holds neither compliance.manage nor root | yes |
+| 8112 | `PUBLIC_LINK_OFF` | anonymous reports | the public report link is switched off in the Compliance settings, so new anonymous reports are refused | yes |

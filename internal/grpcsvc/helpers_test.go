@@ -93,6 +93,8 @@ type env struct {
 	db     *postgres.DB
 	intake reportingv1.IntakeServiceClient
 	cases  reportingv1.CaseServiceClient
+	sets   reportingv1.SettingsServiceClient
+	store  *store.Store
 	users  *directory
 	logs   *syncBuffer
 	now    time.Time
@@ -175,9 +177,12 @@ func newEnv(t *testing.T) *env {
 	require.NoError(t, ob.Migrate(context.Background(), db))
 	e := &env{db: db, users: newDirectory(), logs: &syncBuffer{}, now: time.Date(2026, 10, 5, 14, 0, 0, 0, time.UTC)}
 	lg := log.NewLoggerWithOptions("reporting", log.WithOutput(e.logs), log.WithDefaultLevel(log.LevelTrace))
+	e.store = store.New(db)
+	_, err = e.store.SeedSettings(context.Background(), domain.DefaultSettings([]string{officerGroup}))
+	require.NoError(t, err)
 	deps := grpcsvc.Deps{
-		DB: db, Store: store.New(db), Audit: audit.New(store.NewOutboxPublisher(db, ob, audit.ContentType)),
-		Officers:   access.New(e.users, []string{officerGroup}),
+		DB: db, Store: e.store, Audit: audit.New(store.NewOutboxPublisher(db, ob, audit.ContentType)),
+		Officers:   access.NewFromSource(e.users, grpcsvc.OfficerGroups(e.store)),
 		NoticeDays: domain.NoticeDays{Affected: 60, Regulator: 60, Media: 60, Other: 30},
 		Now:        func() time.Time { return e.now }, Log: lg,
 	}
@@ -189,6 +194,7 @@ func newEnv(t *testing.T) *env {
 		done <- server.Serve(ctx, lis, lg, server.Options{}, func(s *grpc.Server) {
 			reportingv1.RegisterIntakeServiceServer(s, grpcsvc.NewIntake(deps))
 			reportingv1.RegisterCaseServiceServer(s, grpcsvc.NewCases(deps))
+			reportingv1.RegisterSettingsServiceServer(s, grpcsvc.NewSettings(deps))
 		})
 	}()
 	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -203,6 +209,7 @@ func newEnv(t *testing.T) *env {
 	e.conn = conn
 	e.intake = reportingv1.NewIntakeServiceClient(conn)
 	e.cases = reportingv1.NewCaseServiceClient(conn)
+	e.sets = reportingv1.NewSettingsServiceClient(conn)
 	return e
 }
 
