@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
+	workloadidentity "github.com/Bugs5382/go-workload-identity"
 	"github.com/Steward-GRC/steward-reporting/internal/domain"
-	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
 )
 
 // DefaultTokenFile is where the release mounts reporting's projected
 // service-account token.
-const DefaultTokenFile = workloadauth.DefaultTokenFile
+const DefaultTokenFile = "/var/run/secrets/steward/token" // #nosec G101 -- a file path, not a credential
 
 // defaultPurgeInterval is how often the retention purge runs.
 const defaultPurgeInterval = time.Hour
@@ -53,7 +53,7 @@ type Config struct {
 	// WorkloadAuth is false only for WORKLOAD_AUTH=disabled, on local runs.
 	WorkloadAuth bool
 	// Workload verifies the callers' service-account tokens.
-	Workload workloadauth.Config
+	Workload workloadidentity.Config
 	// TokenFile is reporting's own projected token, sent on every call to
 	// identity; empty when WorkloadAuth is off.
 	TokenFile string
@@ -108,11 +108,11 @@ func Load(getenv func(string) string) (Config, error) {
 		c.PurgeInterval = d
 	}
 	var err error
-	if c.Workload, c.WorkloadAuth, err = workloadauth.ServerConfigFromEnv(getenv); err != nil {
+	if c.Workload, c.WorkloadAuth, err = serverWorkloadConfig(getenv); err != nil {
 		errs = append(errs, err)
 	}
 	if c.WorkloadAuth {
-		c.TokenFile = or(workloadauth.EnvTokenFile, DefaultTokenFile)
+		c.TokenFile = or(workloadidentity.EnvTokenFile, DefaultTokenFile)
 	}
 	return c, errors.Join(errs...)
 }

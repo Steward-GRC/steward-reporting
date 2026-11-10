@@ -28,6 +28,7 @@ import (
 	rmqotel "github.com/Bugs5382/go-rabbitmq/otel"
 	"google.golang.org/grpc"
 
+	workloadidentity "github.com/Bugs5382/go-workload-identity"
 	reportingv1 "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1"
 	identityv1 "github.com/Steward-GRC/steward-reporting/gen/go/thirdparty/identity/v1"
 	"github.com/Steward-GRC/steward-reporting/internal/access"
@@ -39,7 +40,6 @@ import (
 	"github.com/Steward-GRC/steward-reporting/internal/retention"
 	"github.com/Steward-GRC/steward-reporting/internal/server"
 	"github.com/Steward-GRC/steward-reporting/internal/store"
-	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
 )
 
 const serviceName = "reporting"
@@ -148,15 +148,15 @@ func run(ctx context.Context, logger log.Logger) error {
 	readyDeps := readiness.Deps{Postgres: readiness.PostgresDB(db), Broker: conn, Identity: readiness.GRPCPeer(identityConn)}
 	serveOpts := server.Options{Policy: grpcsvc.CallerPolicy, OnDeny: auditDenial(auditor, logger)}
 	if cfg.WorkloadAuth {
-		verifier, err := workloadauth.NewVerifier(cfg.Workload, logger)
+		verifier, err := workloadidentity.NewVerifier(cfg.Workload, logger)
 		if err != nil {
-			return fmt.Errorf("workloadauth: %w", err)
+			return fmt.Errorf("workload identity: %w", err)
 		}
 		go verifier.Run(ctx)
 		serveOpts.Verifier = verifier
 		readyDeps.WorkloadKeys = verifier.Refresh
 	} else {
-		go workloadauth.WarnDisabled(ctx, logger, workloadauth.DisabledWarnInterval)
+		go workloadidentity.WarnDisabled(ctx, logger, workloadidentity.DisabledWarnInterval)
 		readyDeps.WorkloadAuthDisabled = true
 	}
 	checker, err := readiness.New(readyDeps, health.WithTTL(5*time.Second), health.WithTimeout(2*time.Second), health.WithLogger(logger))
@@ -193,10 +193,10 @@ func run(ctx context.Context, logger log.Logger) error {
 	return errors.Join(err, <-probesDone)
 }
 
-// auditDenial audits every call workloadauth refuses. The request is never
+// auditDenial audits every call the workload-identity interceptor refuses. The request is never
 // recorded, only who called what and why it was refused.
-func auditDenial(auditor *audit.Emitter, logger log.Logger) workloadauth.DenyHook {
-	return func(ctx context.Context, d workloadauth.Denial) {
+func auditDenial(auditor *audit.Emitter, logger log.Logger) workloadidentity.DenyHook {
+	return func(ctx context.Context, d workloadidentity.Denial) {
 		if err := auditor.Emit(ctx, audit.Event{
 			Tier:    audit.TierAudit,
 			Action:  "reporting.call.refused",

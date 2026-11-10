@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 
+	workloadidentity "github.com/Bugs5382/go-workload-identity"
 	"github.com/Steward-GRC/steward-reporting/internal/audit"
-	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
 )
 
 type recordingPublisher struct{ bodies [][]byte }
@@ -25,10 +25,10 @@ func (r *recordingPublisher) Publish(_ context.Context, _ string, body []byte) e
 // A refused call is audited with who called what and why, never the request.
 func TestAuditDenialRecordsTheRefusal(t *testing.T) {
 	pub := &recordingPublisher{}
-	auditDenial(audit.New(pub), log.Nop())(t.Context(), workloadauth.Denial{
+	auditDenial(audit.New(pub), log.Nop())(t.Context(), workloadidentity.Denial{
 		Method: "/steward.reporting.v1.CaseService/GetCase",
-		Caller: workloadauth.Caller{Name: "workflow", ServiceAccount: "steward/steward-workflow"},
-		Code:   codes.PermissionDenied, Reason: workloadauth.ReasonMethodNotAllowed,
+		Caller: workloadidentity.Caller{Name: "workflow", ServiceAccount: "steward/steward-workflow"},
+		Code:   codes.PermissionDenied, Reason: workloadidentity.ReasonMethodNotAllowed,
 		Request: "secret request body",
 	})
 	require.Len(t, pub.bodies, 1)
