@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
+	workloadidentity "github.com/Bugs5382/go-workload-identity"
 )
 
 // MaxMessageBytes is the message limit both ways: a report carries up to
@@ -53,11 +53,11 @@ const (
 // local runs only.
 type Options struct {
 	// Verifier checks the caller's projected service-account token.
-	Verifier workloadauth.TokenVerifier
+	Verifier workloadidentity.TokenVerifier
 	// Policy is the per-method caller allow-list.
-	Policy workloadauth.Policy
+	Policy workloadidentity.Policy
 	// OnDeny is called for every refused call, to audit it.
-	OnDeny workloadauth.DenyHook
+	OnDeny workloadidentity.DenyHook
 	// Checker holds the dependencies readiness follows.
 	Checker *health.Checker
 	// CheckInterval is how often Health/Watch subscribers are brought up to
@@ -66,7 +66,7 @@ type Options struct {
 }
 
 // Serve runs a gRPC server on lis with go-otel tracing, panic recovery,
-// workloadauth, go-grpc-actor, grpc.health.v1 and reflection, plus the
+// workload identity, go-grpc-actor, grpc.health.v1 and reflection, plus the
 // services register adds. Health needs no token. It returns nil once ctx is
 // cancelled and the server has stopped.
 func Serve(ctx context.Context, lis net.Listener, lg log.Logger, opts Options, register func(*grpc.Server)) error {
@@ -90,12 +90,12 @@ func Serve(ctx context.Context, lis net.Listener, lg log.Logger, opts Options, r
 	stream := []grpc.StreamServerInterceptor{bi.StreamServerInterceptor(), recoverStream(lg)}
 	trust := grpcactor.TrustFunc(func(context.Context, string) bool { return true })
 	if opts.Verifier != nil {
-		var authOpts []workloadauth.Option
+		var authOpts []workloadidentity.Option
 		if opts.OnDeny != nil {
-			authOpts = append(authOpts, workloadauth.WithDenyHook(opts.OnDeny))
+			authOpts = append(authOpts, workloadidentity.WithDenyHook(opts.OnDeny))
 		}
-		unary = append(unary, workloadauth.UnaryServerInterceptor(opts.Verifier, opts.Policy, lg, authOpts...))
-		stream = append(stream, workloadauth.StreamServerInterceptor(opts.Verifier, opts.Policy, lg, authOpts...))
+		unary = append(unary, workloadidentity.UnaryServerInterceptor(opts.Verifier, opts.Policy, lg, authOpts...))
+		stream = append(stream, workloadidentity.StreamServerInterceptor(opts.Verifier, opts.Policy, lg, authOpts...))
 		trust = actorPassing
 	}
 	unary = append(unary, grpcactor.UnaryServerInterceptor(grpcactor.WithTrust(trust)))
@@ -140,8 +140,8 @@ func Serve(ctx context.Context, lis net.Listener, lg log.Logger, opts Options, r
 // as acting on a user's behalf for this method; any other caller acts as
 // itself.
 func actorPassing(ctx context.Context, _ string) bool {
-	g, ok := workloadauth.GrantFromContext(ctx)
-	return ok && g.Access == workloadauth.OnBehalf
+	g, ok := workloadidentity.GrantFromContext(ctx)
+	return ok && g.Access == workloadidentity.OnBehalf
 }
 
 // ServeProbes serves /livez and /readyz over plain HTTP on lis, for probes

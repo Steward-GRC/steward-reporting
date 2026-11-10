@@ -20,17 +20,17 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	workloadidentity "github.com/Bugs5382/go-workload-identity"
 	reportingv1 "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1"
-	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
 )
 
 // fakeVerifier maps a token to the service account it belongs to.
-type fakeVerifier map[string]workloadauth.Caller
+type fakeVerifier map[string]workloadidentity.Caller
 
-func (f fakeVerifier) Verify(token string) (workloadauth.Caller, error) {
+func (f fakeVerifier) Verify(token string) (workloadidentity.Caller, error) {
 	c, ok := f[token]
 	if !ok {
-		return workloadauth.Caller{}, workloadauth.ErrRejected
+		return workloadidentity.Caller{}, workloadidentity.ErrRejected
 	}
 	return c, nil
 }
@@ -41,10 +41,10 @@ var verifier = fakeVerifier{
 	"ai-token":       {Name: "ai", ServiceAccount: "steward/steward-ai"},
 }
 
-var testPolicy = workloadauth.Policy{
+var testPolicy = workloadidentity.Policy{
 	reportingv1.CaseService_GetCase_FullMethodName: {
-		"gateway": workloadauth.OnBehalf,
-		"ai":      workloadauth.Self,
+		"gateway": workloadidentity.OnBehalf,
+		"ai":      workloadidentity.Self,
 	},
 }
 
@@ -122,8 +122,8 @@ func TestAuthDropsTheActorOfASelfCaller(t *testing.T) {
 
 // A valid token from a service account the method doesn't list is refused.
 func TestAuthRefusesAnUnlistedServiceAccount(t *testing.T) {
-	var denied []workloadauth.Denial
-	addr := serveAuth(t, Options{Verifier: verifier, Policy: testPolicy, OnDeny: func(_ context.Context, d workloadauth.Denial) {
+	var denied []workloadidentity.Denial
+	addr := serveAuth(t, Options{Verifier: verifier, Policy: testPolicy, OnDeny: func(_ context.Context, d workloadidentity.Denial) {
 		denied = append(denied, d)
 	}}, make(chan grpcactor.Actor, 1))
 	_, err := clientFor(t, addr, tokenFile(t, "workflow-token")).GetCase(t.Context(), &reportingv1.GetCaseRequest{})

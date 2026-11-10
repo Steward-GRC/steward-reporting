@@ -28,9 +28,10 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 
+	workloadidentity "github.com/Bugs5382/go-workload-identity"
 	pbv1 "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1"
+	"github.com/Steward-GRC/steward-reporting/internal/config"
 	"github.com/Steward-GRC/steward-reporting/internal/readiness"
-	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
 )
 
 // refusingIssuer is an OIDC issuer on a local TLS test server whose JWKS
@@ -65,7 +66,7 @@ func (i *refusingIssuer) token(t *testing.T, sa string) string {
 	t.Helper()
 	now := time.Now()
 	tok := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
-		"iss": i.url, "aud": []string{workloadauth.DefaultAudience}, "sub": "system:serviceaccount:steward:" + sa,
+		"iss": i.url, "aud": []string{config.WorkloadAudience}, "sub": "system:serviceaccount:steward:" + sa,
 		"iat": now.Unix(), "nbf": now.Unix(), "exp": now.Add(time.Hour).Unix(),
 	})
 	tok.Header["kid"] = "k1"
@@ -90,8 +91,8 @@ func up(context.Context) error { return nil }
 // readiness drains the pod on both probes.
 func TestWorkloadAuthFailsClosedWhileTheJWKSIsRefused(t *testing.T) {
 	iss := newRefusingIssuer(t)
-	v, err := workloadauth.NewVerifier(workloadauth.Config{
-		Issuer: iss.url, CAFile: iss.caFile, Audience: workloadauth.DefaultAudience,
+	v, err := workloadidentity.NewVerifier(workloadidentity.Config{
+		Issuer: iss.url, CAFile: iss.caFile, Audience: config.WorkloadAudience, ServiceAccountPrefix: config.WorkloadServiceAccountPrefix,
 		AllowedServiceAccounts: []string{"steward/steward-gateway"},
 	}, log.Nop())
 	require.NoError(t, err)
