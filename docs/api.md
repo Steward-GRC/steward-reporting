@@ -133,8 +133,6 @@ Coded errors carry an `ErrorInfo` (domain `reporting`); see [error codes](error-
   (`STEWARD_IDENTITY_REF`), stubs in `gen/go/thirdparty/identity/v1`.
 - **steward-audit**: publishes its `AuditEvent` (`STEWARD_AUDIT_REF`), never calls it.
 - **steward-core** is not called. A corrective action stores core's policy id as given.
-  `STEWARD_CORE_REF` pins only the `internal/workloadauth` copy, which CI compares byte for byte with
-  core's (`scripts/workloadauth-check.sh`).
 
 ## Service-to-service authentication
 
@@ -142,6 +140,7 @@ Every call but `grpc.health.v1` needs the caller's projected service-account tok
 `steward`) as `authorization: Bearer`. The only caller is `steward-gateway`: as itself on
 `GetIntakeOptions`, `SubmitAnonymousReport`, `CheckReport` and `ReplyToReport`, and on behalf of the signed-in user on
 every other RPC. Any other service account is refused with `PermissionDenied` and audited.
+The check is done by [go-workload-identity](https://github.com/Bugs5382/go-workload-identity).
 
 ## Health
 

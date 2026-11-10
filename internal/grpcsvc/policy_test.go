@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	workloadidentity "github.com/Bugs5382/go-workload-identity"
 	reportingv1 "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1"
 	"github.com/Steward-GRC/steward-reporting/internal/grpcsvc"
-	"github.com/Steward-GRC/steward-reporting/internal/workloadauth"
 )
 
 func methodsOf(sd protoreflect.ServiceDescriptor) []string {
@@ -42,9 +42,9 @@ func TestCallerPolicyPerMethod(t *testing.T) {
 		t.Run(method, func(t *testing.T) {
 			acc, ok := grpcsvc.CallerPolicy.Lookup(method, grpcsvc.CallerGateway)
 			require.True(t, ok, "the gateway calls %s", method)
-			want := workloadauth.OnBehalf
+			want := workloadidentity.OnBehalf
 			if anonymousMethods[method] {
-				want = workloadauth.Self
+				want = workloadidentity.Self
 			}
 			require.Equal(t, want, acc)
 			require.Len(t, grpcsvc.CallerPolicy[method], 1, "only the gateway is listed")

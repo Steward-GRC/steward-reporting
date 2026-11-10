@@ -61,10 +61,6 @@ tasks:
     cmds:
       - scripts/proto-generate.sh
       - buf lint
-  workloadauth:
-    desc: Compare internal/workloadauth with steward-core's copy at STEWARD_CORE_REF
-    cmds:
-      - scripts/workloadauth-check.sh
   proto-breaking:
     desc: Check proto/ for breaking changes against main
     cmds:

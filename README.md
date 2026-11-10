@@ -44,7 +44,6 @@ task build         # go build ./...
 task test          # go test ./... (store, service and readiness tests start containers with testcontainers)
 task lint          # gofmt check + golangci-lint + yamllint
 task proto         # fetch the pinned callee protos, buf lint, regenerate gen/
-task workloadauth  # compare internal/workloadauth with steward-core's copy
 ```
 
 Set `DATABASE_TEST_DSN` to run the store and service tests against an existing Postgres instead of
