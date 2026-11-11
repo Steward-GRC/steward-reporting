@@ -36,6 +36,6 @@ func (i identityUsers) GetUser(ctx context.Context, id string) (User, error) {
 	u := resp.GetUser()
 	return User{
 		ID: u.GetId(), Enabled: u.GetEnabled(), Deleted: u.GetDeletedAt() != "", Root: u.GetIsRoot(),
-		Roles: u.GetRoles(), Groups: u.GetGroups(), IdpGroups: u.GetIdpGroups(),
+		Roles: u.GetRoles(),
 	}, nil
 }

@@ -26,8 +26,8 @@ func (s *Store) SeedSettings(ctx context.Context, st domain.Settings) (seeded bo
 	if err != nil {
 		return false, err
 	}
-	tag, err := s.q(ctx).Exec(ctx, `INSERT INTO compliance_settings (officer_groups, public_link_enabled, retention_days, intake_categories)
-		VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING`, nonNil(st.OfficerGroups), st.PublicLink, st.RetentionDays, cats)
+	tag, err := s.q(ctx).Exec(ctx, `INSERT INTO compliance_settings (public_link_enabled, retention_days, intake_categories)
+		VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`, st.PublicLink, st.RetentionDays, cats)
 	if err != nil {
 		return false, fmt.Errorf("store: seed settings: %w", err)
 	}
@@ -39,9 +39,9 @@ func (s *Store) Settings(ctx context.Context) (domain.Settings, error) {
 	var st domain.Settings
 	var cats []byte
 	var by *string
-	err := s.q(ctx).QueryRow(ctx, `SELECT officer_groups, public_link_enabled, retention_days, intake_categories,
+	err := s.q(ctx).QueryRow(ctx, `SELECT public_link_enabled, retention_days, intake_categories,
 			updated_at, updated_by_user_id
-		FROM compliance_settings`).Scan(&st.OfficerGroups, &st.PublicLink, &st.RetentionDays, &cats, &st.UpdatedAt, &by)
+		FROM compliance_settings`).Scan(&st.PublicLink, &st.RetentionDays, &cats, &st.UpdatedAt, &by)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Settings{}, ErrNotFound
 	}
@@ -67,14 +67,14 @@ func (s *Store) SaveSettings(ctx context.Context, st domain.Settings, by string)
 	if err != nil {
 		return err
 	}
-	_, err = s.q(ctx).Exec(ctx, `INSERT INTO compliance_settings (officer_groups, public_link_enabled, retention_days,
+	_, err = s.q(ctx).Exec(ctx, `INSERT INTO compliance_settings (public_link_enabled, retention_days,
 			intake_categories, updated_at, updated_by_user_id)
-		VALUES ($1, $2, $3, $4, now(), $5)
-		ON CONFLICT (id) DO UPDATE SET officer_groups = EXCLUDED.officer_groups,
+		VALUES ($1, $2, $3, now(), $4)
+		ON CONFLICT (id) DO UPDATE SET
 			public_link_enabled = EXCLUDED.public_link_enabled, retention_days = EXCLUDED.retention_days,
 			intake_categories = EXCLUDED.intake_categories, updated_at = EXCLUDED.updated_at,
 			updated_by_user_id = EXCLUDED.updated_by_user_id`,
-		nonNil(st.OfficerGroups), st.PublicLink, st.RetentionDays, cats, by)
+		st.PublicLink, st.RetentionDays, cats, by)
 	if err != nil {
 		return fmt.Errorf("store: save settings: %w", err)
 	}
@@ -91,11 +91,4 @@ func categoriesJSON(in []domain.Category) ([]byte, error) {
 		return nil, fmt.Errorf("store: encode intake categories: %w", err)
 	}
 	return b, nil
-}
-
-func nonNil(s []string) []string {
-	if s == nil {
-		return []string{}
-	}
-	return s
 }

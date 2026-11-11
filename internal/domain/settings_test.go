@@ -24,9 +24,8 @@ func invalidField(t *testing.T, err error) string {
 	return info.Metadata["field"]
 }
 
-func TestDefaultSettingsSeedTheOfficerGroups(t *testing.T) {
-	s := domain.DefaultSettings([]string{"Privacy Officers"})
-	require.Equal(t, []string{"Privacy Officers"}, s.OfficerGroups)
+func TestDefaultSettings(t *testing.T) {
+	s := domain.DefaultSettings()
 	require.True(t, s.PublicLink, "the public link starts on")
 	require.Equal(t, domain.DefaultRetentionDays, s.RetentionDays)
 	require.Empty(t, s.Categories)
@@ -34,12 +33,10 @@ func TestDefaultSettingsSeedTheOfficerGroups(t *testing.T) {
 
 func TestSettingsNormalizeTrimsAndDedupes(t *testing.T) {
 	s, err := domain.Settings{
-		OfficerGroups: []string{" Privacy Officers ", "privacy officers", "", "9c1d4e2a-0000-4000-8000-000000000001"},
-		PublicLink:    true, RetentionDays: 365,
+		PublicLink: true, RetentionDays: 365,
 		Categories: []domain.Category{{Key: "printing", Label: " Printed records "}, {Key: "email", Label: "Email sent to the wrong person"}},
 	}.Normalize()
 	require.NoError(t, err)
-	require.Equal(t, []string{"Privacy Officers", "9c1d4e2a-0000-4000-8000-000000000001"}, s.OfficerGroups)
 	require.Equal(t, "Printed records", s.Categories[0].Label)
 }
 
@@ -49,7 +46,6 @@ func TestSettingsNormalizeRefusesBadValues(t *testing.T) {
 	}
 	cases := map[string]func(s *domain.Settings){
 		"retention_days": func(s *domain.Settings) { s.RetentionDays = domain.MinRetentionDays - 1 },
-		"officer_groups": func(s *domain.Settings) { s.OfficerGroups = []string{strings.Repeat("g", domain.MaxShortFieldLen+1)} },
 	}
 	for field, mutate := range cases {
 		s := ok()
@@ -82,7 +78,7 @@ func TestSettingsNormalizeRefusesBadValues(t *testing.T) {
 }
 
 func TestCheckCategory(t *testing.T) {
-	none := domain.DefaultSettings(nil)
+	none := domain.DefaultSettings()
 	require.NoError(t, none.CheckCategory(""), "no categories configured: none is asked for")
 	require.Equal(t, "category", invalidField(t, none.CheckCategory("printing")))
 

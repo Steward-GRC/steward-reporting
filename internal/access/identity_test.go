@@ -29,12 +29,12 @@ func (f *fakeIdentity) GetUser(_ context.Context, in *identityv1.GetUserRequest,
 }
 
 func TestIdentityUsersMapsTheRecord(t *testing.T) {
-	f := &fakeIdentity{user: &identityv1.User{Id: "grace", Enabled: true, IsRoot: false, Roles: []string{"compliance-admin"},
+	f := &fakeIdentity{user: &identityv1.User{Id: "grace", Enabled: true, IsRoot: false, Roles: []string{"compliance-admin", "privacy-officer"},
 		Groups: []string{"g-1"}, IdpGroups: []string{"Privacy Officers"}, Email: "grace@example.org", Name: "Grace Example"}}
 	u, err := access.IdentityUsers(f).GetUser(context.Background(), "grace")
 	require.NoError(t, err)
 	require.Equal(t, []string{"grace"}, f.asked)
-	require.Equal(t, access.User{ID: "grace", Enabled: true, Roles: []string{"compliance-admin"}, Groups: []string{"g-1"}, IdpGroups: []string{"Privacy Officers"}}, u)
+	require.Equal(t, access.User{ID: "grace", Enabled: true, Roles: []string{"compliance-admin", "privacy-officer"}}, u)
 
 	f.user = &identityv1.User{Id: "ivan", Enabled: true, DeletedAt: "2026-10-01T00:00:00Z", IsRoot: true}
 	u, err = access.IdentityUsers(f).GetUser(context.Background(), "ivan")

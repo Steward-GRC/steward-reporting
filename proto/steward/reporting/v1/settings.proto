@@ -29,9 +29,9 @@ message IntakeCategory {
 
 // ComplianceSettings are the Compliance settings.
 message ComplianceSettings {
-  // Local group ids or identity provider group names whose members work
-  // cases, matched ignoring case. Empty means nobody can open a case.
-  repeated string officer_groups = 1;
+  // Who works cases is the privacy-officer role in identity, not a setting.
+  reserved 1;
+  reserved "officer_groups";
   // Off, new anonymous reports are refused; existing ones can still be
   // checked and replied to.
   bool public_link_enabled = 2;

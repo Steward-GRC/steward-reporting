@@ -115,10 +115,9 @@ CREATE TABLE case_corrective_actions (
 );
 
 -- The Compliance settings (C10): one row, seeded at start-up from
--- REPORTING_OFFICER_GROUPS and changed only through SettingsService after.
+-- the defaults and changed only through SettingsService after.
 CREATE TABLE compliance_settings (
     id                  boolean     PRIMARY KEY DEFAULT true CHECK (id),
-    officer_groups      text[]      NOT NULL DEFAULT '{}',
     public_link_enabled boolean     NOT NULL DEFAULT true,
     retention_days      int         NOT NULL CHECK (retention_days BETWEEN 30 AND 36500),
     intake_categories   jsonb       NOT NULL DEFAULT '[]',

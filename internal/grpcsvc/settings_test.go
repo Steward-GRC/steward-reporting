@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	reportingv1 "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1"
+	"github.com/Steward-GRC/steward-reporting/internal/access"
 	"github.com/Steward-GRC/steward-reporting/internal/domain"
 	"github.com/Steward-GRC/steward-reporting/internal/errcodes"
 )
@@ -34,13 +35,12 @@ func TestSettingsStartFromTheSeed(t *testing.T) {
 	r, err := e.sets.GetSettings(as(t, carol), &reportingv1.GetSettingsRequest{})
 	require.NoError(t, err)
 	s := r.GetSettings()
-	require.Equal(t, []string{officerGroup}, s.GetOfficerGroups(), "REPORTING_OFFICER_GROUPS seeds the officer groups")
 	require.True(t, s.GetPublicLinkEnabled())
 	require.EqualValues(t, domain.DefaultRetentionDays, s.GetRetentionDays())
 	require.Empty(t, s.GetIntakeCategories())
 	require.Empty(t, s.GetUpdatedByUserId())
 
-	again, err := e.store.SeedSettings(t.Context(), domain.DefaultSettings([]string{"Someone Else"}))
+	again, err := e.store.SeedSettings(t.Context(), domain.DefaultSettings())
 	require.NoError(t, err)
 	require.False(t, again, "the seed applies to a fresh database only")
 }
@@ -48,10 +48,9 @@ func TestSettingsStartFromTheSeed(t *testing.T) {
 func TestSettingsRoundTripAndAudit(t *testing.T) {
 	e := newEnv(t)
 	saved := e.save(t, &reportingv1.ComplianceSettings{
-		OfficerGroups: []string{officerGroup, " Privacy Leads "}, PublicLinkEnabled: false, RetentionDays: 3650,
+		PublicLinkEnabled: false, RetentionDays: 3650,
 		IntakeCategories: categories(),
 	})
-	require.Equal(t, []string{officerGroup, "Privacy Leads"}, saved.GetOfficerGroups())
 	require.False(t, saved.GetPublicLinkEnabled())
 	require.EqualValues(t, 3650, saved.GetRetentionDays())
 	require.Equal(t, carol, saved.GetUpdatedByUserId())
@@ -64,7 +63,7 @@ func TestSettingsRoundTripAndAudit(t *testing.T) {
 	evs := e.events(t)
 	require.Equal(t, []string{"settings.updated", "settings.read"}, actions(evs))
 	require.Equal(t, carol, evs[0].ActorUserID)
-	require.Equal(t, map[string]string{"officer_groups": "2", "public_link": "false", "retention_days": "3650", "intake_categories": "2"}, evs[0].Attributes)
+	require.Equal(t, map[string]string{"public_link": "false", "retention_days": "3650", "intake_categories": "2"}, evs[0].Attributes)
 	require.Equal(t, dave, evs[1].ActorUserID)
 }
 
@@ -103,12 +102,12 @@ func TestUpdateSettingsValidates(t *testing.T) {
 	require.Equal(t, errcodes.CodeInvalid, errCode(t, err))
 }
 
-// Officer access follows the stored groups from the next call on.
-func TestOfficerAccessReadsTheStoredGroups(t *testing.T) {
+// Officer access follows the role identity holds from the next call on.
+func TestOfficerAccessFollowsTheIdentityRole(t *testing.T) {
 	e := newEnv(t)
 	_, err := e.cases.ListCases(as(t, grace), &reportingv1.ListCasesRequest{})
 	require.NoError(t, err)
-	e.save(t, &reportingv1.ComplianceSettings{OfficerGroups: []string{"Privacy Leads"}, PublicLinkEnabled: true, RetentionDays: 365})
+	e.users.users[grace] = access.User{ID: grace, Enabled: true}
 	_, err = e.cases.ListCases(as(t, grace), &reportingv1.ListCasesRequest{})
 	require.Equal(t, errcodes.CodeCaseAccessDenied, errCode(t, err))
 }
@@ -116,7 +115,7 @@ func TestOfficerAccessReadsTheStoredGroups(t *testing.T) {
 func TestPublicLinkOffRefusesNewAnonymousReportsOnly(t *testing.T) {
 	e := newEnv(t)
 	code, _ := e.submitAnonymous(t)
-	e.save(t, &reportingv1.ComplianceSettings{OfficerGroups: []string{officerGroup}, PublicLinkEnabled: false, RetentionDays: 365})
+	e.save(t, &reportingv1.ComplianceSettings{PublicLinkEnabled: false, RetentionDays: 365})
 
 	opts, err := e.intake.GetIntakeOptions(t.Context(), &reportingv1.GetIntakeOptionsRequest{})
 	require.NoError(t, err)
@@ -147,7 +146,7 @@ func TestIntakeCategoriesAreCheckedOnSubmit(t *testing.T) {
 	_, err := e.intake.SubmitAnonymousReport(t.Context(), &reportingv1.SubmitAnonymousReportRequest{Details: withCategory("printing"), Passphrase: passphrase})
 	require.Equal(t, errcodes.CodeInvalid, errCode(t, err), "no categories configured: none may be sent")
 
-	e.save(t, &reportingv1.ComplianceSettings{OfficerGroups: []string{officerGroup}, PublicLinkEnabled: true, RetentionDays: 365, IntakeCategories: categories()})
+	e.save(t, &reportingv1.ComplianceSettings{PublicLinkEnabled: true, RetentionDays: 365, IntakeCategories: categories()})
 	opts, err := e.intake.GetIntakeOptions(t.Context(), &reportingv1.GetIntakeOptionsRequest{})
 	require.NoError(t, err)
 	require.True(t, opts.GetAnonymousReportsOpen())

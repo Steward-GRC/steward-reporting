@@ -21,7 +21,7 @@ import (
 // maxNoticeTextLen bounds a notice's label and method, in characters.
 const maxNoticeTextLen = 200
 
-// Cases serves CaseService. Every call is the officer group's only.
+// Cases serves CaseService. Every call is the privacy officers' only.
 type Cases struct {
 	reportingv1.UnimplementedCaseServiceServer
 	d Deps

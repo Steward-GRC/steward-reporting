@@ -84,9 +84,6 @@ func (x *IntakeCategory) GetLabel() string {
 // ComplianceSettings are the Compliance settings.
 type ComplianceSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Local group ids or identity provider group names whose members work
-	// cases, matched ignoring case. Empty means nobody can open a case.
-	OfficerGroups []string `protobuf:"bytes,1,rep,name=officer_groups,json=officerGroups,proto3" json:"officer_groups,omitempty"`
 	// Off, new anonymous reports are refused; existing ones can still be
 	// checked and replied to.
 	PublicLinkEnabled bool `protobuf:"varint,2,opt,name=public_link_enabled,json=publicLinkEnabled,proto3" json:"public_link_enabled,omitempty"`
@@ -131,13 +128,6 @@ func (x *ComplianceSettings) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ComplianceSettings.ProtoReflect.Descriptor instead.
 func (*ComplianceSettings) Descriptor() ([]byte, []int) {
 	return file_steward_reporting_v1_settings_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ComplianceSettings) GetOfficerGroups() []string {
-	if x != nil {
-		return x.OfficerGroups
-	}
-	return nil
 }
 
 func (x *ComplianceSettings) GetPublicLinkEnabled() bool {
@@ -351,15 +341,14 @@ const file_steward_reporting_v1_settings_proto_rawDesc = "" +
 	"#steward/reporting/v1/settings.proto\x12\x14steward.reporting.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"8\n" +
 	"\x0eIntakeCategory\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05label\x18\x02 \x01(\tR\x05label\"\xcd\x02\n" +
-	"\x12ComplianceSettings\x12%\n" +
-	"\x0eofficer_groups\x18\x01 \x03(\tR\rofficerGroups\x12.\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\xbc\x02\n" +
+	"\x12ComplianceSettings\x12.\n" +
 	"\x13public_link_enabled\x18\x02 \x01(\bR\x11publicLinkEnabled\x12%\n" +
 	"\x0eretention_days\x18\x03 \x01(\x05R\rretentionDays\x12Q\n" +
 	"\x11intake_categories\x18\x04 \x03(\v2$.steward.reporting.v1.IntakeCategoryR\x10intakeCategories\x129\n" +
 	"\n" +
 	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12+\n" +
-	"\x12updated_by_user_id\x18\x06 \x01(\tR\x0fupdatedByUserId\"\x14\n" +
+	"\x12updated_by_user_id\x18\x06 \x01(\tR\x0fupdatedByUserIdJ\x04\b\x01\x10\x02R\x0eofficer_groups\"\x14\n" +
 	"\x12GetSettingsRequest\"[\n" +
 	"\x13GetSettingsResponse\x12D\n" +
 	"\bsettings\x18\x01 \x01(\v2(.steward.reporting.v1.ComplianceSettingsR\bsettings\"]\n" +

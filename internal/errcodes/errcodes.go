@@ -53,7 +53,7 @@ func Entries() []apperr.Entry {
 			Title: "named reports and cases", Cause: "a named-report or case call ran without a trusted forwarded actor",
 			UserSafe: true, Message: "You need to be signed in to do this. You can still report anonymously without signing in."},
 		{Code: CodeCaseAccessDenied, Symbol: "CASE_ACCESS_DENIED", Category: apperr.CategoryPermissionDenied,
-			Title: "cases", Cause: "the actor is not in an officer group; site admins and root are not officers unless they are in one",
+			Title: "cases", Cause: "the actor does not hold the privacy-officer role in identity; site admins and root are not officers unless they hold it",
 			UserSafe: true, Message: "Only privacy officers can open cases."},
 		{Code: CodeCaseNotFound, Symbol: "CASE_NOT_FOUND", Category: apperr.CategoryNotFound,
 			Title: "cases", Cause: "no case or no attachment, notice or own named report with that id",
@@ -138,7 +138,7 @@ func ReportNotFound() error { return apperr.Coded(CodeReportNotFound, errReport)
 // SignInRequired codes a call that needs a forwarded actor and has none.
 func SignInRequired() error { return apperr.Coded(CodeSignInRequired, errNoActor) }
 
-// CaseAccessDenied codes an actor outside the officer group.
+// CaseAccessDenied codes an actor without the privacy-officer role.
 func CaseAccessDenied() error { return apperr.Coded(CodeCaseAccessDenied, errNotOfficer) }
 
 // CaseNotFound codes a missing case, attachment, notice or own report.

@@ -11,7 +11,7 @@ the caller; every other code is sent as `Code N: Internal Error`.
 | 8102 | `REPORT_INVALID` | report or case input | a request field is missing, too long or out of range; field names it | yes |
 | 8103 | `REPORT_NOT_FOUND` | check a report | no anonymous report matches the case code and passphrase; an unknown code and a wrong passphrase are not told apart | yes |
 | 8104 | `REPORT_SIGN_IN_REQUIRED` | named reports and cases | a named-report or case call ran without a trusted forwarded actor | yes |
-| 8105 | `CASE_ACCESS_DENIED` | cases | the actor is not in an officer group; site admins and root are not officers unless they are in one | yes |
+| 8105 | `CASE_ACCESS_DENIED` | cases | the actor does not hold the privacy-officer role in identity; site admins and root are not officers unless they hold it | yes |
 | 8106 | `CASE_NOT_FOUND` | cases | no case or no attachment, notice or own named report with that id | yes |
 | 8107 | `CASE_CLOSED` | cases | a change or a reply was sent to a closed case | yes |
 | 8108 | `ATTACHMENT_UNSUPPORTED` | attachments | an attachment is not a JPEG, PNG, GIF or plain text file, can't be decoded, or is too large; attachment is its 1-based number | yes |

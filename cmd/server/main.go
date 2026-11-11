@@ -120,21 +120,18 @@ func run(ctx context.Context, logger log.Logger) error {
 	}
 	defer func() { _ = identityConn.Close() }()
 	st := store.New(db)
-	seeded, err := st.SeedSettings(ctx, domain.DefaultSettings(cfg.OfficerGroups))
+	seeded, err := st.SeedSettings(ctx, domain.DefaultSettings())
 	if err != nil {
 		return fmt.Errorf("settings: %w", err)
 	}
 	if seeded {
-		logger.Info("compliance settings seeded", log.F("officer_groups", len(cfg.OfficerGroups)))
-		if len(cfg.OfficerGroups) == 0 {
-			logger.Warn("REPORTING_OFFICER_GROUPS is not set: nobody can open cases until a compliance admin names the officer groups")
-		}
+		logger.Info("compliance settings seeded")
 	} else {
-		logger.Info("compliance settings already stored; REPORTING_OFFICER_GROUPS is ignored")
+		logger.Info("compliance settings already stored")
 	}
 	deps := grpcsvc.Deps{
 		DB: db, Store: st, Audit: auditor,
-		Officers:   access.NewFromSource(access.IdentityUsers(identityv1.NewIdentityReadServiceClient(identityConn)), grpcsvc.OfficerGroups(st)),
+		Officers:   access.New(access.IdentityUsers(identityv1.NewIdentityReadServiceClient(identityConn))),
 		NoticeDays: cfg.NoticeDays, Log: logger,
 	}
 

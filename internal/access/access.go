@@ -1,12 +1,10 @@
 // Copyright 2026 The Steward Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package access decides who may work cases: the members of the configured
-// officer groups, and nobody else. Membership comes from identity, never from
-// the caller, and is decided through steward-authz's rule engine with one
-// group rule per officer group. Only a matching rule admits: the engine's
-// built-in reads for site admins and root, which open the policy library, do
-// not open cases.
+// Package access decides who may work cases: the holders of the
+// privacy-officer role in identity, and nobody else. The role comes from
+// identity on every call, never from the caller. Only the role admits: site
+// admins and root, who read the policy library, do not open cases.
 package access
 
 import (
@@ -29,10 +27,6 @@ type User struct {
 	Deleted bool
 	Root    bool
 	Roles   []string
-	// Groups are the ids of the local groups the user is in.
-	Groups []string
-	// IdpGroups are the group names the identity provider asserted.
-	IdpGroups []string
 }
 
 // Users looks users up in identity.
@@ -40,40 +34,17 @@ type Users interface {
 	GetUser(ctx context.Context, id string) (User, error)
 }
 
-// officerRuleset names the rule set the officer groups are compiled into.
-const officerRuleset = "reporting.officers"
-
-// GroupSource returns the officer groups as they stand now.
-type GroupSource func(ctx context.Context) ([]string, error)
+// PrivacyOfficerRole is the identity role that admits a user to cases.
+const PrivacyOfficerRole = "privacy-officer"
 
 // Checker decides officer and settings access.
 type Checker struct {
-	users  Users
-	groups GroupSource
+	users Users
 }
 
-// New returns a checker for a fixed set of officer groups: local group ids or
-// identity provider group names, matched ignoring case. No groups means no
-// officers.
-func New(users Users, officerGroups []string) *Checker {
-	return NewFromSource(users, func(context.Context) ([]string, error) { return officerGroups, nil })
-}
-
-// NewFromSource returns a checker that reads the officer groups on every
-// call, so a change to them applies to the next call.
-func NewFromSource(users Users, groups GroupSource) *Checker {
-	return &Checker{users: users, groups: groups}
-}
-
-func compile(officerGroups []string) *stewardauthz.Evaluator {
-	rules := make([]stewardauthz.Rule, 0, len(officerGroups))
-	for _, g := range officerGroups {
-		rules = append(rules, stewardauthz.Rule{
-			Subject: stewardauthz.RuleSubject{Kind: stewardauthz.SubjectGroup, Name: g},
-			Grants:  map[stewardauthz.Action]stewardauthz.Grant{stewardauthz.ActionRead: stewardauthz.GrantAllow, stewardauthz.ActionAuthor: stewardauthz.GrantAllow},
-		})
-	}
-	return stewardauthz.Compile([]stewardauthz.CategoryRuleset{{Name: officerRuleset, Rules: rules}})
+// New returns a checker that asks users who holds which role.
+func New(users Users) *Checker {
+	return &Checker{users: users}
 }
 
 // lookup returns the enabled, undeleted user, or denied when there is none.
@@ -108,18 +79,7 @@ func (c *Checker) Officer(ctx context.Context, userID string) error {
 	if err != nil {
 		return err
 	}
-	groups, err := c.groups(ctx)
-	if err != nil {
-		return err
-	}
-	subject := stewardauthz.Subject{
-		UserID: u.ID,
-		Groups: append(append([]string{}, u.Groups...), u.IdpGroups...),
-		Root:   u.Root,
-		Roles:  roles(u),
-	}
-	res := compile(groups).Resolve(ctx, subject)
-	if res.Read.Reason != stewardauthz.ReasonRuleAllow || res.Author.Reason != stewardauthz.ReasonRuleAllow {
+	if !slices.Contains(u.Roles, PrivacyOfficerRole) {
 		return errcodes.CaseAccessDenied()
 	}
 	return nil

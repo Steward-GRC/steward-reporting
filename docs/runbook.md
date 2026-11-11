@@ -4,9 +4,9 @@
 
 The service applies the baseline migration and the audit outbox's own migration, connects to
 Postgres and RabbitMQ, starts the audit relay, dials identity and serves gRPC. A bad setting stops
-it with every problem listed. On an empty database it seeds the Compliance settings from
-`REPORTING_OFFICER_GROUPS`; seeded with no officer groups it starts, warns, and refuses every case
-call until a compliance admin names them. Later starts log that the stored settings are kept.
+it with every problem listed. On an empty database it seeds the Compliance settings
+with their defaults. Later starts log that the stored settings are kept. Nobody can open a case
+until identity grants someone the `privacy-officer` role.
 
 ## Probes
 
@@ -52,7 +52,7 @@ never purged.
 
 | Symptom | Look at |
 | --- | --- |
-| `CASE_ACCESS_DENIED` for an officer | The officer groups in the Compliance settings (`GetSettings`; `REPORTING_OFFICER_GROUPS` is only the first seed), and the user's groups in identity: a local group id or an identity provider group name, matched ignoring case. A disabled or deleted account is never an officer. |
+| `CASE_ACCESS_DENIED` for an officer | The user's roles in identity: the `privacy-officer` role makes an officer, and a group never does. A disabled or deleted account is never an officer. |
 | `PUBLIC_LINK_OFF` on an anonymous report | The public link is switched off in the Compliance settings. |
 | `REPORT_INVALID` with field `category` | The report's intake category isn't one configured in the settings, or one is required. |
 | `REPORT_SIGN_IN_REQUIRED` on every named or case call | The gateway isn't passing the user: check its service account is `steward/steward-gateway` and listed in `WORKLOAD_ALLOWED_SERVICEACCOUNTS`. |
