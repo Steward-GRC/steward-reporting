@@ -164,3 +164,16 @@ func TestIntakeCategoriesAreCheckedOnSubmit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "email", c.GetCase().GetDetails().GetCategory())
 }
+
+// The deprecated officer_groups field is accepted and ignored: nothing is
+// stored from it and nothing comes back.
+func TestDeprecatedOfficerGroupsAreIgnored(t *testing.T) {
+	e := newEnv(t)
+	saved := e.save(t, &reportingv1.ComplianceSettings{
+		OfficerGroups: []string{"Privacy Officers"}, PublicLinkEnabled: true, RetentionDays: 365, //nolint:staticcheck // the field under test
+	})
+	require.Empty(t, saved.GetOfficerGroups()) //nolint:staticcheck // the field under test
+	got, err := e.sets.GetSettings(as(t, dave), &reportingv1.GetSettingsRequest{})
+	require.NoError(t, err)
+	require.Empty(t, got.GetSettings().GetOfficerGroups()) //nolint:staticcheck // the field under test
+}
