@@ -25,7 +25,7 @@ start-up with every problem listed.
 | `WORKLOAD_ALLOWED_SERVICEACCOUNTS` | required with the issuer | Comma-separated `<namespace>/<serviceaccount>` that may call reporting at all: `steward/steward-gateway`. The per-method list is in code. |
 | `WORKLOAD_TOKEN_FILE` | `/var/run/secrets/steward/token` | Reporting's own projected token, sent to identity on every call and re-read each time. A missing file stops the boot. |
 | `WORKLOAD_AUTH` | enabled | `disabled` turns service-to-service authentication off, for local runs only: every caller is let in, a warning is logged every five minutes and readiness reports `workloadauth` degraded. Any other value is an error. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `localhost:4317` | Traces and metrics. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | Traces and metrics. Unset or empty turns tracing off. |
 | `LOG_LEVEL`, `LOG_FORMAT` | `info`, `json` | go-log. Local runs use `trace` and `console`. |
 
 The notice days are counted from the case's discovery date, so changing a setting changes the
