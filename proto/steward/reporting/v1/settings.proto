@@ -29,9 +29,10 @@ message IntakeCategory {
 
 // ComplianceSettings are the Compliance settings.
 message ComplianceSettings {
-  // Local group ids or identity provider group names whose members work
-  // cases, matched ignoring case. Empty means nobody can open a case.
-  repeated string officer_groups = 1;
+  // Ignored and unused: it is no longer stored, read or audited. Who works
+  // cases is the privacy-officer role in identity. Kept only so the contract
+  // does not break; saved settings never return it.
+  repeated string officer_groups = 1 [deprecated = true];
   // Off, new anonymous reports are refused; existing ones can still be
   // checked and replied to.
   bool public_link_enabled = 2;

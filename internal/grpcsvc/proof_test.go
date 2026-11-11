@@ -183,7 +183,7 @@ func outsiders(t *testing.T) []outsider {
 	}
 }
 
-// Proof 3: nothing in a case reaches anyone outside the officer group.
+// Proof 3: nothing in a case reaches anyone without the privacy-officer role.
 func TestProofNothingInACaseReachesAnyoneOutsideTheOfficerGroup(t *testing.T) {
 	e := newEnv(t)
 	code, id := e.submitAnonymous(t)

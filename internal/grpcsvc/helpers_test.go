@@ -51,9 +51,8 @@ const (
 	heidi = "0b9f3d0c-1a2b-4c3d-8e4f-000000000002"
 	root  = "0b9f3d0c-1a2b-4c3d-8e4f-0000000000ff"
 
-	officerGroup = "Privacy Officers"
-	passphrase   = "correct horse battery"
-	auditTable   = "audit_outbox"
+	passphrase = "correct horse battery"
+	auditTable = "audit_outbox"
 )
 
 // What identity knows about Alice. Reporting never learns it.
@@ -83,8 +82,8 @@ func newDirectory() *directory {
 		carol: {ID: carol, Enabled: true, Roles: []string{"compliance-admin"}},
 		dave:  {ID: dave, Enabled: true, Roles: []string{"site-admin"}},
 		root:  {ID: root, Enabled: true, Root: true, Roles: []string{"site-admin"}},
-		grace: {ID: grace, Enabled: true, IdpGroups: []string{officerGroup}},
-		heidi: {ID: heidi, Enabled: true, IdpGroups: []string{officerGroup}},
+		grace: {ID: grace, Enabled: true, Roles: []string{"privacy-officer"}},
+		heidi: {ID: heidi, Enabled: true, Roles: []string{"privacy-officer"}},
 	}}
 }
 
@@ -180,11 +179,11 @@ func newEnv(t *testing.T) *env {
 	e := &env{db: db, users: newDirectory(), logs: &syncBuffer{}, now: time.Date(2026, 10, 5, 14, 0, 0, 0, time.UTC)}
 	lg := log.NewLoggerWithOptions("reporting", log.WithOutput(e.logs), log.WithDefaultLevel(log.LevelTrace))
 	e.store = store.New(db)
-	_, err = e.store.SeedSettings(context.Background(), domain.DefaultSettings([]string{officerGroup}))
+	_, err = e.store.SeedSettings(context.Background(), domain.DefaultSettings())
 	require.NoError(t, err)
 	deps := grpcsvc.Deps{
 		DB: db, Store: e.store, Audit: audit.New(store.NewOutboxPublisher(db, ob, audit.ContentType)),
-		Officers:   access.NewFromSource(e.users, grpcsvc.OfficerGroups(e.store)),
+		Officers:   access.New(e.users),
 		NoticeDays: domain.NoticeDays{Affected: 60, Regulator: 60, Media: 60, Other: 30},
 		Now:        func() time.Time { return e.now }, Log: lg,
 	}

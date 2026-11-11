@@ -12,7 +12,7 @@ their name, and a privacy officer works the case to a close.
 - **Officers:** the case queue, case detail, a two-way thread with the reporter, internal notes, a
   guided breach risk assessment ending in a recorded decision, notices with deadlines counted from
   discovery, and close-out with corrective actions that can link to a policy.
-- Nothing in a case reaches anyone outside the officer group, and every view and change is audited.
+- Nothing in a case reaches anyone without the privacy-officer role, and every view and change is audited.
 
 It asks identity who is an officer and publishes steward-audit's `AuditEvent`.
 

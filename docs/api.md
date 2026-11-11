@@ -41,9 +41,8 @@ internal notes, the assessment, notices, the assignee or which officer wrote a m
 
 ## CaseService: the officer's side
 
-Every call needs a signed-in user who is in one of the officer groups in the Compliance settings,
-read on every call and checked against identity through steward-authz's rule engine. Site admins, root and compliance
-admins are not officers unless they are in one of those groups, and act-as is refused
+Every call needs a signed-in user who holds the `privacy-officer` role in identity, read on every
+call. Site admins, root and compliance admins are not officers unless they hold that role, and act-as is refused
 (`ACT_AS_NOT_ALLOWED`). Every refusal of a known user is audited as `case.access_refused`.
 
 | RPC | What |
@@ -68,17 +67,16 @@ or when only staff saw information that is neither health nor financial informat
 
 | RPC | What |
 | --- | --- |
-| `GetSettings` | The officer groups, the public link switch, the retention period after close (days) and the intake categories, with who saved them last and when. |
-| `UpdateSettings` | Replaces every setting at once and returns them as saved. Officer groups are trimmed and deduplicated ignoring case (up to 50, 200 characters each). Retention is 30 to 36500 days. Up to 50 intake categories, each a unique key (lower-case letters, digits, `-` and `_`, up to 40 characters) and a label (up to 200 characters). |
+| `GetSettings` | The public link switch, the retention period after close (days) and the intake categories, with who saved them last and when. |
+| `UpdateSettings` | Replaces every setting at once and returns them as saved. Retention is 30 to 36500 days. Up to 50 intake categories, each a unique key (lower-case letters, digits, `-` and `_`, up to 40 characters) and a label (up to 200 characters). |
 
 Both need a signed-in holder of the `compliance.manage` permission, which compliance admins hold,
 and site admins and root through the catalog: the Compliance settings belong to the compliance
 admin, and holding them doesn't make anyone an officer. Act-as is refused. Anyone else gets
 `SETTINGS_ACCESS_DENIED`, audited as `settings.access_refused`.
 
-The first start on an empty database stores the defaults: the officer groups from
-`REPORTING_OFFICER_GROUPS`, the public link on, seven years' retention and no intake categories.
-After that the variable is ignored and the stored settings win. A change applies from the next call.
+The first start on an empty database stores the defaults: the public link on, seven years'
+retention and no intake categories. After that the stored settings win. A change applies from the next call.
 
 ## LegalHoldService: legal holds and the retention purge
 
@@ -116,10 +114,10 @@ go-outbox table `audit_outbox`, in the same transaction as the change.
 | `settings.access_refused` | the refused user (the real user during act-as) | none |
 | `reporting.call.refused` | none | `method:<full method>` |
 
-Audit readers are not the officer group, so no event carries report text, notes, messages,
+Audit readers are not officers, so no event carries report text, notes, messages,
 reasons or the case code, and reporter-side events name no actor, a named reporter included.
 Attributes carry only kinds, counts, statuses, decisions, outcomes and ids; `settings.updated`
-carries the number of officer groups and categories, the public link switch and the retention days,
+carries the number of categories, the public link switch and the retention days,
 and `case.purged` carries only the retention days it was purged under.
 
 ## Errors
@@ -128,7 +126,7 @@ Coded errors carry an `ErrorInfo` (domain `reporting`); see [error codes](error-
 
 ## Calling other services
 
-- **steward-identity** `IdentityReadService.GetUser`, to decide officer membership. Reporting asks
+- **steward-identity** `IdentityReadService.GetUser`, to decide who holds the privacy-officer role. Reporting asks
   as itself, with its service-account token and no end-user actor. Pinned in `proto-refs.env`
   (`STEWARD_IDENTITY_REF`), stubs in `gen/go/thirdparty/identity/v1`.
 - **steward-audit**: publishes its `AuditEvent` (`STEWARD_AUDIT_REF`), never calls it.

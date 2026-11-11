@@ -20,7 +20,6 @@ const (
 	// MinRetentionDays keeps a mistyped setting from purging recent cases.
 	MinRetentionDays  = 30
 	MaxRetentionDays  = 100 * 365
-	MaxOfficerGroups  = 50
 	MaxCategories     = 50
 	MaxCategoryKeyLen = 40
 )
@@ -36,9 +35,6 @@ type Category struct {
 
 // Settings are the Compliance settings (C10).
 type Settings struct {
-	// OfficerGroups are the local group ids or identity provider group names
-	// whose members work cases. Empty means nobody does.
-	OfficerGroups []string
 	// PublicLink lets anonymous reports in. Off, new anonymous reports are
 	// refused; existing ones can still be checked and replied to.
 	PublicLink bool
@@ -52,32 +48,13 @@ type Settings struct {
 	UpdatedBy string
 }
 
-// DefaultSettings are the settings before anyone saves them, with the officer
-// groups seeded from configuration.
-func DefaultSettings(officerGroups []string) Settings {
-	return Settings{OfficerGroups: slices.Clone(officerGroups), PublicLink: true, RetentionDays: DefaultRetentionDays}
+// DefaultSettings are the settings before anyone saves them.
+func DefaultSettings() Settings {
+	return Settings{PublicLink: true, RetentionDays: DefaultRetentionDays}
 }
 
-// Normalize trims and checks the settings, and drops repeated officer groups
-// (ignoring case) and blank ones.
+// Normalize trims and checks the settings.
 func (s Settings) Normalize() (Settings, error) {
-	groups := make([]string, 0, len(s.OfficerGroups))
-	for _, g := range s.OfficerGroups {
-		g = strings.TrimSpace(g)
-		if g == "" {
-			continue
-		}
-		if utf8.RuneCountInString(g) > MaxShortFieldLen {
-			return Settings{}, errcodes.Invalid("officer_groups")
-		}
-		if !slices.ContainsFunc(groups, func(h string) bool { return strings.EqualFold(g, h) }) {
-			groups = append(groups, g)
-		}
-	}
-	if len(groups) > MaxOfficerGroups {
-		return Settings{}, errcodes.Invalid("officer_groups")
-	}
-	s.OfficerGroups = groups
 	if s.RetentionDays < MinRetentionDays || s.RetentionDays > MaxRetentionDays {
 		return Settings{}, errcodes.Invalid("retention_days")
 	}

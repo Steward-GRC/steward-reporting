@@ -9,7 +9,7 @@ import "steward/reporting/v1/reporting.proto";
 option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1;reportingv1";
 
 // CaseService is the officer's side. Every call needs a forwarded actor who is
-// in a configured officer group; anyone else, site admins and root included,
+// who holds the privacy-officer role in identity; anyone else, site admins and root included,
 // is refused. Every call, reads included, is audited.
 service CaseService {
   // ListCases is the case queue (C5), with counts per status.

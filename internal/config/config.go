@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	workloadidentity "github.com/Bugs5382/go-workload-identity"
@@ -42,9 +41,6 @@ type Config struct {
 	ProbePort    string
 	OTLPEndpoint string
 	IdentityAddr string
-	// OfficerGroups are the local group ids or identity provider group names
-	// whose members work cases. Empty means nobody does.
-	OfficerGroups []string
 	// NoticeDays are the days allowed from discovery per notice recipient.
 	NoticeDays domain.NoticeDays
 	// PurgeInterval is how often the retention purge runs; zero pauses it
@@ -75,7 +71,6 @@ func Load(getenv func(string) string) (Config, error) {
 		ProbePort:     or("PROBE_PORT", "8080"),
 		OTLPEndpoint:  or("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
 		IdentityAddr:  or("IDENTITY_GRPC_ADDR", "identity:9090"),
-		OfficerGroups: list(getenv("REPORTING_OFFICER_GROUPS")),
 	}
 	c.MigrateDSN = or("MIGRATE_DSN", c.DatabaseDSN)
 
@@ -115,16 +110,4 @@ func Load(getenv func(string) string) (Config, error) {
 		c.TokenFile = or(workloadidentity.EnvTokenFile, DefaultTokenFile)
 	}
 	return c, errors.Join(errs...)
-}
-
-// list splits a comma-separated value, dropping blanks, so a stray comma
-// never adds an empty entry.
-func list(raw string) []string {
-	var out []string
-	for _, p := range strings.Split(raw, ",") {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }

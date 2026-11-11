@@ -76,7 +76,7 @@ func (e *env) purger() *retention.Purger {
 
 func TestPurgeTakesClosedCasesPastRetentionWithEveryRow(t *testing.T) {
 	e := newEnv(t)
-	e.save(t, &reportingv1.ComplianceSettings{OfficerGroups: []string{officerGroup}, PublicLinkEnabled: true, RetentionDays: 365})
+	e.save(t, &reportingv1.ComplianceSettings{PublicLinkEnabled: true, RetentionDays: 365})
 	old := []string{e.closedCase(t, 400), e.closedCase(t, 500), e.closedCase(t, 366)}
 	recent := e.closedCase(t, 364)
 	open := e.openCase(t)

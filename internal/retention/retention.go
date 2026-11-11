@@ -60,7 +60,7 @@ func (p *Purger) Once(ctx context.Context) (int, error) {
 	started := time.Now()
 	st, err := p.Store.Settings(ctx)
 	if errors.Is(err, store.ErrNotFound) {
-		st = domain.DefaultSettings(nil)
+		st = domain.DefaultSettings()
 	} else if err != nil {
 		return 0, err
 	}

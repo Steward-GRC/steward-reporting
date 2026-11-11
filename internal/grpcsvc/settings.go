@@ -11,30 +11,17 @@ import (
 	log "github.com/Bugs5382/go-log"
 
 	reportingv1 "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1"
-	"github.com/Steward-GRC/steward-reporting/internal/access"
 	"github.com/Steward-GRC/steward-reporting/internal/domain"
 	"github.com/Steward-GRC/steward-reporting/internal/errcodes"
 	"github.com/Steward-GRC/steward-reporting/internal/store"
 )
 
-// OfficerGroups reads the officer groups from the stored settings, for
-// access.NewFromSource.
-func OfficerGroups(st *store.Store) access.GroupSource {
-	return func(ctx context.Context) ([]string, error) {
-		s, err := loadSettings(ctx, st)
-		if err != nil {
-			return nil, err
-		}
-		return s.OfficerGroups, nil
-	}
-}
-
-// loadSettings returns the stored settings, or the defaults with no officer
-// groups before the start-up seed has run.
+// loadSettings returns the stored settings, or the defaults before the
+// start-up seed has run.
 func loadSettings(ctx context.Context, st *store.Store) (domain.Settings, error) {
 	s, err := st.Settings(ctx)
 	if errors.Is(err, store.ErrNotFound) {
-		return domain.DefaultSettings(nil), nil
+		return domain.DefaultSettings(), nil
 	}
 	if err != nil {
 		return domain.Settings{}, errcodes.StoreUnavailable("load settings", err)
@@ -120,7 +107,6 @@ func (s *Settings) UpdateSettings(ctx context.Context, req *reportingv1.UpdateSe
 			return err
 		}
 		return s.d.emit(ctx, "settings.updated", who, "", map[string]string{
-			"officer_groups":    strconv.Itoa(len(saved.OfficerGroups)),
 			"public_link":       strconv.FormatBool(saved.PublicLink),
 			"retention_days":    strconv.Itoa(saved.RetentionDays),
 			"intake_categories": strconv.Itoa(len(saved.Categories)),
@@ -129,13 +115,12 @@ func (s *Settings) UpdateSettings(ctx context.Context, req *reportingv1.UpdateSe
 	if err != nil {
 		return nil, errcodes.Error(ctx, err)
 	}
-	s.d.Log.Ctx(ctx).Info("compliance settings saved", log.F("user_id", who), log.F("officer_groups", len(saved.OfficerGroups)),
-		log.F("public_link", saved.PublicLink), log.F("retention_days", saved.RetentionDays), log.F("intake_categories", len(saved.Categories)))
+	s.d.Log.Ctx(ctx).Info("compliance settings saved", log.F("user_id", who), log.F("public_link", saved.PublicLink), log.F("retention_days", saved.RetentionDays), log.F("intake_categories", len(saved.Categories)))
 	return &reportingv1.UpdateSettingsResponse{Settings: settingsToProto(saved)}, nil
 }
 
 func settingsFromProto(p *reportingv1.ComplianceSettings) domain.Settings {
-	s := domain.Settings{OfficerGroups: p.GetOfficerGroups(), PublicLink: p.GetPublicLinkEnabled(), RetentionDays: int(p.GetRetentionDays())}
+	s := domain.Settings{PublicLink: p.GetPublicLinkEnabled(), RetentionDays: int(p.GetRetentionDays())}
 	for _, c := range p.GetIntakeCategories() {
 		s.Categories = append(s.Categories, domain.Category{Key: c.GetKey(), Label: c.GetLabel()})
 	}
@@ -152,7 +137,7 @@ func categoriesToProto(in []domain.Category) []*reportingv1.IntakeCategory {
 
 func settingsToProto(s domain.Settings) *reportingv1.ComplianceSettings {
 	p := &reportingv1.ComplianceSettings{
-		OfficerGroups: s.OfficerGroups, PublicLinkEnabled: s.PublicLink, RetentionDays: int32(s.RetentionDays), // #nosec G115 -- 30 to 36500, checked by Normalize and the schema
+		PublicLinkEnabled: s.PublicLink, RetentionDays: int32(s.RetentionDays), // #nosec G115 -- 30 to 36500, checked by Normalize and the schema
 		IntakeCategories: categoriesToProto(s.Categories), UpdatedByUserId: s.UpdatedBy,
 	}
 	if !s.UpdatedAt.IsZero() {

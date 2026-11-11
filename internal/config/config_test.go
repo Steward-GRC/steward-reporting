@@ -33,7 +33,6 @@ func TestLoadDefaults(t *testing.T) {
 	require.Equal(t, "migrations", c.MigrationsDir)
 	require.Equal(t, c.DatabaseDSN, c.MigrateDSN)
 	require.Equal(t, "identity:9090", c.IdentityAddr)
-	require.Empty(t, c.OfficerGroups, "nobody is an officer until an adopter names the groups")
 	require.Equal(t, domain.NoticeDays{Affected: 60, Regulator: 60, Media: 60, Other: 60}, c.NoticeDays)
 }
 
@@ -44,14 +43,6 @@ func TestLoadMissingRequired(t *testing.T) {
 		_, err := Load(env(m))
 		require.ErrorContains(t, err, k)
 	}
-}
-
-func TestLoadOfficerGroups(t *testing.T) {
-	m := required()
-	m["REPORTING_OFFICER_GROUPS"] = " Privacy Officers ,, 9c1d4e2a-0000-4000-8000-000000000001,"
-	c, err := Load(env(m))
-	require.NoError(t, err)
-	require.Equal(t, []string{"Privacy Officers", "9c1d4e2a-0000-4000-8000-000000000001"}, c.OfficerGroups)
 }
 
 func TestLoadNoticeDays(t *testing.T) {

@@ -29,15 +29,15 @@ func (u users) GetUser(_ context.Context, id string) (access.User, error) {
 }
 
 var directory = users{
-	"grace":   {ID: "grace", Enabled: true, IdpGroups: []string{"Privacy Officers"}},
-	"heidi":   {ID: "heidi", Enabled: true, Groups: []string{"9c1d4e2a-0000-4000-8000-000000000001"}},
+	"grace":   {ID: "grace", Enabled: true, Roles: []string{"privacy-officer"}},
+	"heidi":   {ID: "heidi", Enabled: true, Roles: []string{"compliance-admin", "privacy-officer"}},
 	"alice":   {ID: "alice", Enabled: true},
 	"carol":   {ID: "carol", Enabled: true, Roles: []string{"compliance-admin"}},
 	"dave":    {ID: "dave", Enabled: true, Roles: []string{"site-admin"}},
 	"root":    {ID: "root", Enabled: true, Root: true, Roles: []string{"site-admin"}},
-	"ivan":    {ID: "ivan", Enabled: false, IdpGroups: []string{"privacy officers"}},
-	"erin":    {ID: "erin", Enabled: true, IdpGroups: []string{"Privacy Officers Archive"}},
-	"deleted": {ID: "deleted", Enabled: true, Deleted: true, IdpGroups: []string{"Privacy Officers"}},
+	"ivan":    {ID: "ivan", Enabled: false, Roles: []string{"privacy-officer"}},
+	"erin":    {ID: "erin", Enabled: true, Roles: []string{"privacy-officers", "Privacy-Officer"}},
+	"deleted": {ID: "deleted", Enabled: true, Deleted: true, Roles: []string{"privacy-officer"}},
 }
 
 func code(t *testing.T, err error) int {
@@ -48,11 +48,11 @@ func code(t *testing.T, err error) int {
 	return info.Code
 }
 
-func TestOnlyOfficerGroupMembersAreOfficers(t *testing.T) {
-	c := access.New(directory, []string{"privacy officers", "9c1d4e2a-0000-4000-8000-000000000001"})
+func TestOnlyHoldersOfThePrivacyOfficerRoleAreOfficers(t *testing.T) {
+	c := access.New(directory)
 	ctx := context.Background()
-	require.NoError(t, c.Officer(ctx, "grace"), "an IdP group matches ignoring case")
-	require.NoError(t, c.Officer(ctx, "heidi"), "a local group matches by id")
+	require.NoError(t, c.Officer(ctx, "grace"))
+	require.NoError(t, c.Officer(ctx, "heidi"), "the role may sit beside others")
 	for _, id := range []string{"alice", "carol", "dave", "root", "ivan", "erin", "deleted", "nobody"} {
 		require.Equal(t, errcodes.CodeCaseAccessDenied, code(t, c.Officer(ctx, id)), id)
 	}
@@ -61,42 +61,35 @@ func TestOnlyOfficerGroupMembersAreOfficers(t *testing.T) {
 // Site admins and root read everything in the policy library; cases are
 // outside it.
 func TestSiteAdminAndRootAreNotOfficers(t *testing.T) {
-	c := access.New(directory, []string{"Privacy Officers"})
+	c := access.New(directory)
 	require.Equal(t, errcodes.CodeCaseAccessDenied, code(t, c.Officer(context.Background(), "dave")))
 	require.Equal(t, errcodes.CodeCaseAccessDenied, code(t, c.Officer(context.Background(), "root")))
 }
 
-func TestNoOfficerGroupsMeansNoOfficers(t *testing.T) {
-	c := access.New(directory, nil)
-	require.Equal(t, errcodes.CodeCaseAccessDenied, code(t, c.Officer(context.Background(), "grace")))
+// A group of any name, local or from the identity provider, admits nobody.
+func TestGroupMembershipIsNotTheOfficerRole(t *testing.T) {
+	c := access.New(users{"gina": {ID: "gina", Enabled: true, Roles: []string{"author"}}})
+	require.Equal(t, errcodes.CodeCaseAccessDenied, code(t, c.Officer(context.Background(), "gina")))
+}
+
+func TestRoleIsReadOnEveryCall(t *testing.T) {
+	d := users{"grace": {ID: "grace", Enabled: true, Roles: []string{"privacy-officer"}}}
+	c := access.New(d)
+	ctx := context.Background()
+	require.NoError(t, c.Officer(ctx, "grace"))
+	d["grace"] = access.User{ID: "grace", Enabled: true}
+	require.Equal(t, errcodes.CodeCaseAccessDenied, code(t, c.Officer(ctx, "grace")), "a revoked role stops admitting at once")
 }
 
 func TestIdentityDownRefusesTheCall(t *testing.T) {
-	c := access.New(directory, []string{"Privacy Officers"})
+	c := access.New(directory)
 	require.Equal(t, errcodes.CodeIdentityUnavailable, code(t, c.Officer(context.Background(), "broken")))
-}
-
-func TestOfficerGroupsAreReadOnEveryCall(t *testing.T) {
-	groups := []string{"Privacy Officers"}
-	c := access.NewFromSource(directory, func(context.Context) ([]string, error) { return groups, nil })
-	ctx := context.Background()
-	require.NoError(t, c.Officer(ctx, "grace"))
-	groups = []string{"9c1d4e2a-0000-4000-8000-000000000001"}
-	require.Equal(t, errcodes.CodeCaseAccessDenied, code(t, c.Officer(ctx, "grace")), "a removed group stops admitting at once")
-	require.NoError(t, c.Officer(ctx, "heidi"))
-}
-
-func TestOfficerGroupsUnreadableRefusesTheCall(t *testing.T) {
-	c := access.NewFromSource(directory, func(context.Context) ([]string, error) {
-		return nil, errcodes.StoreUnavailable("settings", errors.New("connection refused"))
-	})
-	require.Equal(t, errcodes.CodeStoreUnavailable, code(t, c.Officer(context.Background(), "grace")))
 }
 
 // The Compliance settings are changed by holders of compliance.manage:
 // compliance admins, and site admins and root through the catalog.
 func TestSettingsAdminHoldsComplianceManage(t *testing.T) {
-	c := access.New(directory, []string{"Privacy Officers"})
+	c := access.New(directory)
 	ctx := context.Background()
 	for _, id := range []string{"carol", "dave", "root"} {
 		require.NoError(t, c.SettingsAdmin(ctx, id), id)
@@ -105,6 +98,6 @@ func TestSettingsAdminHoldsComplianceManage(t *testing.T) {
 		require.Equal(t, errcodes.CodeSettingsAccessDenied, code(t, c.SettingsAdmin(ctx, id)), id)
 	}
 	disabled := users{"carol": {ID: "carol", Enabled: false, Roles: []string{"compliance-admin"}}}
-	require.Equal(t, errcodes.CodeSettingsAccessDenied, code(t, access.New(disabled, nil).SettingsAdmin(ctx, "carol")))
+	require.Equal(t, errcodes.CodeSettingsAccessDenied, code(t, access.New(disabled).SettingsAdmin(ctx, "carol")))
 	require.Equal(t, errcodes.CodeIdentityUnavailable, code(t, c.SettingsAdmin(ctx, "broken")))
 }
