@@ -34,7 +34,7 @@ func TestIdentityUsersMapsTheRecord(t *testing.T) {
 	u, err := access.IdentityUsers(f).GetUser(context.Background(), "grace")
 	require.NoError(t, err)
 	require.Equal(t, []string{"grace"}, f.asked)
-	require.Equal(t, access.User{ID: "grace", Enabled: true, Roles: []string{"compliance-admin", "privacy-officer"}}, u)
+	require.Equal(t, access.User{ID: "grace", Enabled: true, Roles: []string{"compliance-admin", "privacy-officer"}, Groups: []string{"g-1", "Privacy Officers"}}, u)
 
 	f.user = &identityv1.User{Id: "ivan", Enabled: true, DeletedAt: "2026-10-01T00:00:00Z", IsRoot: true}
 	u, err = access.IdentityUsers(f).GetUser(context.Background(), "ivan")

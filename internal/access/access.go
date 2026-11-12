@@ -4,7 +4,9 @@
 // Package access decides who may work cases: the holders of the
 // privacy-officer role in identity, and nobody else. The role comes from
 // identity on every call, never from the caller. Only the role admits: site
-// admins and root, who read the policy library, do not open cases.
+// admins and root, who read the policy library, do not open cases. Category
+// read and author decisions for report scoping come from go-authz's ordered
+// engine (category.go) and role permissions from its rbac catalog (internal/authz).
 package access
 
 import (
@@ -12,8 +14,7 @@ import (
 	"errors"
 	"slices"
 
-	stewardauthz "github.com/Steward-GRC/steward-authz"
-
+	"github.com/Steward-GRC/steward-reporting/internal/authz"
 	"github.com/Steward-GRC/steward-reporting/internal/errcodes"
 )
 
@@ -27,6 +28,9 @@ type User struct {
 	Deleted bool
 	Root    bool
 	Roles   []string
+	// Groups are the ids of the local groups the user is in and the group
+	// names the identity provider asserted.
+	Groups []string
 }
 
 // Users looks users up in identity.
@@ -62,10 +66,10 @@ func (c *Checker) lookup(ctx context.Context, userID string, denied func() error
 	return u, nil
 }
 
-func roles(u User) []stewardauthz.Role {
-	var out []stewardauthz.Role
+func roles(u User) []authz.Role {
+	var out []authz.Role
 	for _, r := range u.Roles {
-		if role, err := stewardauthz.ParseRole(r); err == nil {
+		if role, err := authz.ParseRole(r); err == nil {
 			out = append(out, role)
 		}
 	}
@@ -94,7 +98,7 @@ func (c *Checker) SettingsAdmin(ctx context.Context, userID string) error {
 	if err != nil {
 		return err
 	}
-	if u.Root || slices.Contains(stewardauthz.RolePermissions(roles(u)...), stewardauthz.ComplianceManage) {
+	if u.Root || slices.Contains(authz.RolePermissions(roles(u)...), authz.ComplianceManage) {
 		return nil
 	}
 	return errcodes.SettingsAccessDenied()

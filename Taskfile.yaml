@@ -74,3 +74,13 @@ tasks:
     dotenv: ['.env']
     cmds:
       - go run ./cmd/server
+  catalog:refresh:
+    desc: "Refresh the embedded Steward catalog from its canonical commit: task catalog:refresh COMMIT=<sha>"
+    requires:
+      vars: [COMMIT]
+    cmds:
+      - |
+        set -e
+        gh api "repos/Steward-GRC/steward-gateway/contents/internal/authz/catalog.json?ref={{.COMMIT}}" -H "Accept: application/vnd.github.raw" > testdata/catalog.canonical.json
+        cp testdata/catalog.canonical.json internal/authz/catalog.json
+        printf 'commit: %s\npath: internal/authz/catalog.json\nrepo: Steward-GRC/steward-gateway\n' "{{.COMMIT}}" > testdata/CATALOG_SOURCE
