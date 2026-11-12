@@ -29,7 +29,7 @@ func (u users) GetUser(_ context.Context, id string) (access.User, error) {
 }
 
 var directory = users{
-	"grace":   {ID: "grace", Enabled: true, Roles: []string{"privacy-officer"}},
+	"grace":   {ID: "grace", Enabled: true, Groups: []string{"officers"}, Roles: []string{"privacy-officer"}},
 	"heidi":   {ID: "heidi", Enabled: true, Roles: []string{"compliance-admin", "privacy-officer"}},
 	"alice":   {ID: "alice", Enabled: true},
 	"carol":   {ID: "carol", Enabled: true, Roles: []string{"compliance-admin"}},

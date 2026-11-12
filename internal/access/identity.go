@@ -6,6 +6,7 @@ package access
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -36,6 +37,6 @@ func (i identityUsers) GetUser(ctx context.Context, id string) (User, error) {
 	u := resp.GetUser()
 	return User{
 		ID: u.GetId(), Enabled: u.GetEnabled(), Deleted: u.GetDeletedAt() != "", Root: u.GetIsRoot(),
-		Roles: u.GetRoles(),
+		Roles: u.GetRoles(), Groups: slices.Concat(u.GetGroups(), u.GetIdpGroups()),
 	}, nil
 }
