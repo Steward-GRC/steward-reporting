@@ -99,16 +99,31 @@ func TestNonRootSiteAdminFollowsTheRules(t *testing.T) {
 	require.False(t, decide(t, "dave", access.ActionRead, level("empty", nil)), "no rule, no access")
 }
 
-// Root is exempt from the rows for Read, Author, Approve and Manage, but not
-// for Ack.
-func TestRootIsExemptExceptAck(t *testing.T) {
-	l := level("c", nil, access.Rule{Subject: "everyone:*", Read: deny, Author: deny, Approve: deny, Manage: deny, Ack: deny})
-	for _, a := range []access.Action{access.ActionRead, access.ActionAuthor, access.ActionApprove, access.ActionManage} {
+// Root is exempt from the rows for Read, Author and Manage only: a deny against
+// it is stored but never applied.
+func TestRootIsExemptForReadAuthorAndManage(t *testing.T) {
+	l := level("c", nil,
+		access.Rule{Subject: "role:root", Read: deny, Author: deny, Manage: deny},
+		access.Rule{Subject: "everyone:*", Read: deny, Author: deny, Manage: deny},
+	)
+	for _, a := range []access.Action{access.ActionRead, access.ActionAuthor, access.ActionManage} {
 		require.True(t, decide(t, "root", a, l), a)
 	}
-	require.False(t, decide(t, "root", access.ActionAck, l), "root follows the rows for Ack")
-	ack := level("c", nil, access.Rule{Subject: "everyone:*", Read: allow, Ack: allow})
-	require.True(t, decide(t, "root", access.ActionAck, ack))
+	require.True(t, decide(t, "root", access.ActionRead, level("empty", nil)), "no rule at all, still Read")
+	require.False(t, decide(t, "alice", access.ActionRead, l))
+}
+
+// Approve and Ack are not global for root: the rows decide.
+func TestRootApproveAndAckFollowTheRows(t *testing.T) {
+	denied := level("c", nil, access.Rule{Subject: "everyone:*", Read: allow, Approve: deny, Ack: deny})
+	granted := level("c", nil, access.Rule{Subject: "everyone:*", Read: allow, Approve: allow, Ack: allow})
+	rootDenied := level("c", nil, access.Rule{Subject: "role:root", Read: allow, Approve: deny, Ack: deny}, access.Rule{Subject: "everyone:*", Approve: allow, Ack: allow})
+	for _, a := range []access.Action{access.ActionApprove, access.ActionAck} {
+		require.False(t, decide(t, "root", a, denied), string(a)+" deny applies")
+		require.False(t, decide(t, "root", a, rootDenied), string(a)+" deny against root applies")
+		require.False(t, decide(t, "root", a, level("c", nil)), string(a)+" no row")
+		require.True(t, decide(t, "root", a, granted), string(a)+" allow applies")
+	}
 }
 
 // Ack requires Read: an Ack allow is not enough when Read is denied.

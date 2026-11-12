@@ -48,13 +48,14 @@ type Level struct {
 	Rules      []Rule
 }
 
-// categoryModel is the ordered model with root as the exempt seat for every
-// action but Ack. Non-root site admins follow the rows.
+// categoryModel is the ordered model with root as the exempt seat for Read,
+// Author and Manage only; Approve and Ack follow the rows for root too.
+// Non-root site admins follow the rows for every action.
 func categoryModel() ordered.Model {
 	m := ordered.DefaultModel()
 	m.Superusers = &ordered.Superusers{
 		Subjects: []string{"role:" + rootRole},
-		Actions:  []string{string(ActionRead), string(ActionAuthor), string(ActionApprove), string(ActionManage)},
+		Actions:  []string{string(ActionRead), string(ActionAuthor), string(ActionManage)},
 	}
 	return m
 }
