@@ -42,4 +42,6 @@ var CallerPolicy = workloadidentity.Policy{
 	reportingv1.LegalHoldService_PlaceLegalHold_FullMethodName:     {CallerGateway: workloadidentity.OnBehalf},
 	reportingv1.LegalHoldService_ReleaseLegalHold_FullMethodName:   {CallerGateway: workloadidentity.OnBehalf},
 	reportingv1.LegalHoldService_ListLegalHolds_FullMethodName:     {CallerGateway: workloadidentity.OnBehalf},
+	reportingv1.ModuleService_SetComplianceModule_FullMethodName:   {CallerGateway: workloadidentity.OnBehalf},
+	reportingv1.ModuleService_ExecuteHardReset_FullMethodName:      {CallerGateway: workloadidentity.OnBehalf},
 }

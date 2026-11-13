@@ -101,3 +101,13 @@ func TestSettingsAdminHoldsComplianceManage(t *testing.T) {
 	require.Equal(t, errcodes.CodeSettingsAccessDenied, code(t, access.New(disabled).SettingsAdmin(ctx, "carol")))
 	require.Equal(t, errcodes.CodeIdentityUnavailable, code(t, c.SettingsAdmin(ctx, "broken")))
 }
+
+func TestRootIsWhoIdentitySaysIsRoot(t *testing.T) {
+	c := access.New(directory)
+	ctx := context.Background()
+	require.NoError(t, c.Root(ctx, "root"))
+	for _, id := range []string{"dave", "carol", "grace", "alice", "ivan", "deleted", "nobody"} {
+		require.Equal(t, errcodes.CodeHardResetRootRequired, code(t, c.Root(ctx, id)), id)
+	}
+	require.Equal(t, errcodes.CodeIdentityUnavailable, code(t, c.Root(ctx, "broken")))
+}

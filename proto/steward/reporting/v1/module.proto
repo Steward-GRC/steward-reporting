@@ -1,0 +1,56 @@
+// Copyright 2026 The Steward Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package steward.reporting.v1;
+
+option go_package = "github.com/Steward-GRC/steward-reporting/gen/go/steward/reporting/v1;reportingv1";
+
+// ModuleService switches the Compliance module off and on, and hard resets
+// it. Both calls act for the forwarded, signed-in actor; act-as is refused.
+//
+// While the module is off every IntakeService and CaseService call is
+// refused with MODULE_OFF (a failed precondition), nothing new is stored and
+// all data is kept. The settings, legal hold and module calls stay available
+// so an admin can switch the module back on.
+//
+// The two-person approval of a hard reset lives in identity (RequestHardReset,
+// ApproveHardReset, CancelHardReset on IdentityAdminService), where identity
+// decides who is root. This service only redeems the approval.
+service ModuleService {
+  // SetComplianceModule turns the module on or off. The actor must hold
+  // compliance.manage or be root. Turning it off keeps every case.
+  rpc SetComplianceModule(SetComplianceModuleRequest) returns (SetComplianceModuleResponse);
+  // ExecuteHardReset deletes every case and every row that belongs to one.
+  // The actor must be root in identity. It is refused, before anything is
+  // redeemed or deleted, when the confirmation phrase is wrong, the module is
+  // still on, or any case is under a legal hold. It then redeems identity's
+  // approved request (a different root admin approved it) once, deletes in
+  // one transaction and records a tombstone audit event naming both admins
+  // and the case count, with no case content, no case id and no reporter
+  // data. The settings and rest of the service are kept.
+  rpc ExecuteHardReset(ExecuteHardResetRequest) returns (ExecuteHardResetResponse);
+}
+
+message SetComplianceModuleRequest {
+  bool enabled = 1;
+}
+
+message SetComplianceModuleResponse {
+  bool module_enabled = 1;
+}
+
+message ExecuteHardResetRequest {
+  // The identity hard reset request id, already approved by a second admin.
+  string request_id = 1;
+  // The typed confirmation phrase, exactly: RESET COMPLIANCE DATA
+  string confirmation = 2;
+}
+
+message ExecuteHardResetResponse {
+  // How many cases were deleted.
+  int64 cases_deleted = 1;
+  // The two admins named on the tombstone.
+  string requested_by_user_id = 2;
+  string approved_by_user_id = 3;
+}

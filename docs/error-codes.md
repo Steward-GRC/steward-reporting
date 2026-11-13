@@ -19,3 +19,9 @@ the caller; every other code is sent as `Code N: Internal Error`.
 | 8110 | `ACT_AS_NOT_ALLOWED` | act-as | an impersonated actor called a case or named-report RPC; act-as never reaches cases or reports | yes |
 | 8111 | `SETTINGS_ACCESS_DENIED` | compliance settings | the actor holds neither compliance.manage nor root | yes |
 | 8112 | `PUBLIC_LINK_OFF` | anonymous reports | the public report link is switched off in the Compliance settings, so new anonymous reports are refused | yes |
+| 8113 | `MODULE_OFF` | compliance module | the Compliance module is switched off, so every intake and case call is refused; the data is kept | yes |
+| 8114 | `HARD_RESET_CONFIRMATION` | hard reset | the typed confirmation phrase of a hard reset is missing or does not match exactly | yes |
+| 8115 | `HARD_RESET_MODULE_ON` | hard reset | a hard reset was asked for while the module is on; it must be switched off first so no report lands mid-delete | yes |
+| 8116 | `HARD_RESET_LEGAL_HOLD` | hard reset | at least one case is under a legal hold, so the whole reset is refused and nothing is deleted | yes |
+| 8117 | `HARD_RESET_NOT_APPROVED` | hard reset | identity has no approved, unexpired, unused hard reset request for the compliance module, or the two admins on it are not different people | yes |
+| 8118 | `HARD_RESET_ROOT_REQUIRED` | hard reset | the actor is not root in identity | yes |

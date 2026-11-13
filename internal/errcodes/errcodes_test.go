@@ -46,6 +46,12 @@ func TestUserSafeCodesKeepTheirMessage(t *testing.T) {
 		{errcodes.CaseClosed(), codes.FailedPrecondition, 8107, nil},
 		{errcodes.AttachmentUnsupported(2), codes.InvalidArgument, 8108, map[string]string{"attachment": "2"}},
 		{errcodes.ActAsNotAllowed(), codes.PermissionDenied, 8110, nil},
+		{errcodes.ModuleOff(), codes.FailedPrecondition, 8113, nil},
+		{errcodes.HardResetConfirmation(), codes.InvalidArgument, 8114, nil},
+		{errcodes.HardResetModuleOn(), codes.FailedPrecondition, 8115, nil},
+		{errcodes.HardResetLegalHold(), codes.FailedPrecondition, 8116, nil},
+		{errcodes.HardResetNotApproved(), codes.FailedPrecondition, 8117, nil},
+		{errcodes.HardResetRootRequired(), codes.PermissionDenied, 8118, nil},
 	}
 	for _, c := range cases {
 		st := status.Convert(errcodes.Error(context.Background(), c.err))

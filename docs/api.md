@@ -94,6 +94,44 @@ The same admins as the settings (`compliance.manage` or root) place and release 
 they don't have to be officers, and nothing here reads or returns case content. Act-as is refused,
 and refusals are audited as `legal_hold.access_refused`. Officers see the hold on `GetCase`.
 
+## ModuleService: the module off switch and hard reset
+
+The Compliance module has an off switch, kept in this service's own database (the
+`module_enabled` column of the settings row, on by default). `GetSettings` returns it read only;
+`UpdateSettings` never changes it, so an older client that leaves it out cannot switch the module off.
+
+| RPC | What |
+| --- | --- |
+| `SetComplianceModule` | Turns the module on or off. The same admins as the settings (`compliance.manage` or root). Audited as `module.disabled` or `module.enabled`; refusals as `module.access_refused`. Act-as is refused. |
+| `ExecuteHardReset` | Deletes every case and every row that belongs to one (root only). Needs `request_id` and `confirmation`. |
+
+While the module is off, every `IntakeService` call (the anonymous ones included, and
+`GetIntakeOptions`) and every `CaseService` call is refused with `MODULE_OFF`, before the request is
+read, stored or audited. The refusal logs and audits nothing about the caller, so an anonymous
+reporter is never identified by it. The data is kept. The settings, legal hold and module calls stay
+available so an admin can switch the module back on. The retention purge keeps running by its
+settings; pause it with `REPORTING_PURGE_INTERVAL=off` if the cases must not age out while the module is off.
+
+A hard reset is four-eyes. Identity owns the approval (`RequestHardReset`, `ApproveHardReset`,
+`CancelHardReset` on `IdentityAdminService`: a root admin asks, a different root admin approves,
+each window is limited, and an approval is used once). `ExecuteHardReset` runs these checks, in this order, before
+it redeems anything, and each refusal is audited as `module.hard_reset_refused` with a reason only:
+
+1. the caller is root in identity (`HARD_RESET_ROOT_REQUIRED`); act-as is refused;
+2. `confirmation` is exactly `RESET COMPLIANCE DATA` (`HARD_RESET_CONFIRMATION`);
+3. the module is already off, so no report lands mid-delete (`HARD_RESET_MODULE_ON`);
+4. no case at all is under a legal hold; one hold refuses the whole reset (`HARD_RESET_LEGAL_HOLD`).
+
+It then redeems the approved identity request (`ConsumeHardReset`, module `compliance`; refused as
+`HARD_RESET_NOT_APPROVED` when it is pending, expired, used or for another module, or when the two
+admins on it are the same person or missing). Last, in one transaction under an advisory lock, it
+rechecks the holds, deletes every case (the schema cascades to attachments, messages, notes,
+assessments, notices and corrective actions) and records the tombstone `module.hard_reset`. A failure after the
+redeem burns the approval: the reset fails closed and two admins must approve again. The settings and the
+off switch are kept, so the module stays off until an admin turns it on.
+
+The offer of an export before the reset is the web and gateway side: this service has no export call.
+
 ## Audit events
 
 Every view and change publishes a `steward.audit.v1.AuditEvent` (tier `audit`) through the
@@ -111,6 +149,9 @@ go-outbox table `audit_outbox`, in the same transaction as the change.
 | `legal_hold.listed` | the settings admin | none |
 | `legal_hold.access_refused` | the refused user (the real user during act-as) | `case:<id>` when the call named one |
 | `case.purged` | none | `case:<id>` |
+| `module.enabled`, `module.disabled` | the settings admin | none |
+| `module.hard_reset` | root, who ran it | `module:compliance` |
+| `module.hard_reset_refused`, `module.access_refused` | the refused user (the real user during act-as) | none |
 | `settings.access_refused` | the refused user (the real user during act-as) | none |
 | `reporting.call.refused` | none | `method:<full method>` |
 
@@ -118,7 +159,9 @@ Audit readers are not officers, so no event carries report text, notes, messages
 reasons or the case code, and reporter-side events name no actor, a named reporter included.
 Attributes carry only kinds, counts, statuses, decisions, outcomes and ids; `settings.updated`
 carries the number of categories, the public link switch and the retention days,
-and `case.purged` carries only the retention days it was purged under.
+and `case.purged` carries only the retention days it was purged under. The `module.hard_reset`
+tombstone carries the identity request id, both admins' user ids and the number of cases deleted: no case
+id, case code, reporter or content. `module.hard_reset_refused` carries a reason code only.
 
 ## Errors
 
@@ -129,6 +172,8 @@ Coded errors carry an `ErrorInfo` (domain `reporting`); see [error codes](error-
 - **steward-identity** `IdentityReadService.GetUser`, to decide who holds the privacy-officer role. Reporting asks
   as itself, with its service-account token and no end-user actor. Pinned in `proto-refs.env`
   (`STEWARD_IDENTITY_REF`), stubs in `gen/go/thirdparty/identity/v1`.
+- **steward-identity** `IdentityAdminService.ConsumeHardReset`, once per hard reset, as itself (identity
+  names reporting as the caller allowed to redeem a `compliance` request).
 - **steward-audit**: publishes its `AuditEvent` (`STEWARD_AUDIT_REF`), never calls it.
 - **steward-core** is not called. A corrective action stores core's policy id as given.
 

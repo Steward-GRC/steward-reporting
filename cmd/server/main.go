@@ -132,6 +132,7 @@ func run(ctx context.Context, logger log.Logger) error {
 	deps := grpcsvc.Deps{
 		DB: db, Store: st, Audit: auditor,
 		Officers:   access.New(access.IdentityUsers(identityv1.NewIdentityReadServiceClient(identityConn))),
+		HardResets: identityv1.NewIdentityAdminServiceClient(identityConn),
 		NoticeDays: cfg.NoticeDays, Log: logger,
 	}
 
@@ -143,7 +144,8 @@ func run(ctx context.Context, logger log.Logger) error {
 	}
 
 	readyDeps := readiness.Deps{Postgres: readiness.PostgresDB(db), Broker: conn, Identity: readiness.GRPCPeer(identityConn)}
-	serveOpts := server.Options{Policy: grpcsvc.CallerPolicy, OnDeny: auditDenial(auditor, logger)}
+	serveOpts := server.Options{Policy: grpcsvc.CallerPolicy, OnDeny: auditDenial(auditor, logger),
+		Interceptors: []grpc.UnaryServerInterceptor{grpcsvc.ModuleGate(deps)}}
 	if cfg.WorkloadAuth {
 		verifier, err := workloadidentity.NewVerifier(cfg.Workload, logger)
 		if err != nil {
@@ -185,6 +187,7 @@ func run(ctx context.Context, logger log.Logger) error {
 		reportingv1.RegisterCaseServiceServer(s, grpcsvc.NewCases(deps))
 		reportingv1.RegisterSettingsServiceServer(s, grpcsvc.NewSettings(deps))
 		reportingv1.RegisterLegalHoldServiceServer(s, grpcsvc.NewLegalHolds(deps))
+		reportingv1.RegisterModuleServiceServer(s, grpcsvc.NewModule(deps))
 	})
 	cancel()
 	return errors.Join(err, <-probesDone)
