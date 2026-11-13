@@ -37,7 +37,8 @@ func TestCallerPolicyPerMethod(t *testing.T) {
 		methodsOf(reportingv1.File_steward_reporting_v1_cases_proto.Services().Get(0))...)
 	all = append(all, methodsOf(reportingv1.File_steward_reporting_v1_settings_proto.Services().Get(0))...)
 	all = append(all, methodsOf(reportingv1.File_steward_reporting_v1_holds_proto.Services().Get(0))...)
-	require.Len(t, all, 25)
+	all = append(all, methodsOf(reportingv1.File_steward_reporting_v1_module_proto.Services().Get(0))...)
+	require.Len(t, all, 27)
 	for _, method := range all {
 		t.Run(method, func(t *testing.T) {
 			acc, ok := grpcsvc.CallerPolicy.Lookup(method, grpcsvc.CallerGateway)

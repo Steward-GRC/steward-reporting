@@ -48,11 +48,25 @@ never purged.
 - **Pause it:** set `REPORTING_PURGE_INTERVAL=off` and restart. Every replica then logs a warning at
   start-up. Raising the retention period in the settings also keeps cases longer, from the next run.
 
+## Switching the module off and hard reset
+
+- **Off switch:** an admin calls `ModuleService.SetComplianceModule` with `enabled=false`. Every intake and case
+  call then answers `MODULE_OFF` and the data stays. Turn it back on with `enabled=true`. Each change is audited.
+- **Hard reset:** needs the module off, no legal hold on any case, and an approved identity request (one root admin
+  requests, a different root admin approves, the approval is used once). Root then calls
+  `ExecuteHardReset` with the request id and the phrase `RESET COMPLIANCE DATA`. Offer an export first (web side).
+  Only the `module.hard_reset` audit event survives, with the count and both admins.
+- **After a failed reset:** the log line `hard reset failed after its approval was redeemed` carries the request
+  id. The approval is spent; check the case count and start a new request.
+- **Single root:** identity now allows exactly one root, and its approval step still needs a second root admin, so a
+  hard reset cannot complete until identity reworks it. Reporting needs no change for that.
+
 ## Common problems
 
 | Symptom | Look at |
 | --- | --- |
 | `CASE_ACCESS_DENIED` for an officer | The user's roles in identity: the `privacy-officer` role makes an officer, and a group never does. A disabled or deleted account is never an officer. |
+| `MODULE_OFF` on every intake and case call | The Compliance module is switched off; an admin turns it on with `SetComplianceModule`. |
 | `PUBLIC_LINK_OFF` on an anonymous report | The public link is switched off in the Compliance settings. |
 | `REPORT_INVALID` with field `category` | The report's intake category isn't one configured in the settings, or one is required. |
 | `REPORT_SIGN_IN_REQUIRED` on every named or case call | The gateway isn't passing the user: check its service account is `steward/steward-gateway` and listed in `WORKLOAD_ALLOWED_SERVICEACCOUNTS`. |

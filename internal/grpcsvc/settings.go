@@ -138,7 +138,7 @@ func categoriesToProto(in []domain.Category) []*reportingv1.IntakeCategory {
 func settingsToProto(s domain.Settings) *reportingv1.ComplianceSettings {
 	p := &reportingv1.ComplianceSettings{
 		PublicLinkEnabled: s.PublicLink, RetentionDays: int32(s.RetentionDays), // #nosec G115 -- 30 to 36500, checked by Normalize and the schema
-		IntakeCategories: categoriesToProto(s.Categories), UpdatedByUserId: s.UpdatedBy,
+		IntakeCategories: categoriesToProto(s.Categories), UpdatedByUserId: s.UpdatedBy, ModuleEnabled: s.ModuleEnabled,
 	}
 	if !s.UpdatedAt.IsZero() {
 		p.UpdatedAt = ts(s.UpdatedAt)

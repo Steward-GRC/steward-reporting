@@ -45,6 +45,10 @@ message ComplianceSettings {
   // them; the user id is empty for the seed.
   google.protobuf.Timestamp updated_at = 5;
   string updated_by_user_id = 6;
+  // Read only: whether the Compliance module is on. Off, every IntakeService
+  // and CaseService call is refused with MODULE_OFF and the data is kept.
+  // UpdateSettings ignores it; ModuleService.SetComplianceModule changes it.
+  bool module_enabled = 7;
 }
 
 message GetSettingsRequest {}

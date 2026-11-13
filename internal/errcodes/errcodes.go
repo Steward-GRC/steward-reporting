@@ -34,6 +34,12 @@ const (
 	CodeActAsNotAllowed       = 8110
 	CodeSettingsAccessDenied  = 8111
 	CodePublicLinkOff         = 8112
+	CodeModuleOff             = 8113
+	CodeHardResetConfirmation = 8114
+	CodeHardResetModuleOn     = 8115
+	CodeHardResetLegalHold    = 8116
+	CodeHardResetNotApproved  = 8117
+	CodeHardResetRootRequired = 8118
 )
 
 // Entries returns the registry entries.
@@ -75,6 +81,24 @@ func Entries() []apperr.Entry {
 		{Code: CodePublicLinkOff, Symbol: "PUBLIC_LINK_OFF", Category: apperr.CategoryFailedPrecondition,
 			Title: "anonymous reports", Cause: "the public report link is switched off in the Compliance settings, so new anonymous reports are refused",
 			UserSafe: true, Message: "Anonymous reporting is switched off. Sign in to report a concern with your name."},
+		{Code: CodeModuleOff, Symbol: "MODULE_OFF", Category: apperr.CategoryFailedPrecondition,
+			Title: "compliance module", Cause: "the Compliance module is switched off, so every intake and case call is refused; the data is kept",
+			UserSafe: true, Message: "Compliance reporting is switched off."},
+		{Code: CodeHardResetConfirmation, Symbol: "HARD_RESET_CONFIRMATION", Category: apperr.CategoryInvalid,
+			Title: "hard reset", Cause: "the typed confirmation phrase of a hard reset is missing or does not match exactly",
+			UserSafe: true, Message: "The confirmation phrase doesn't match. Type it exactly as shown."},
+		{Code: CodeHardResetModuleOn, Symbol: "HARD_RESET_MODULE_ON", Category: apperr.CategoryFailedPrecondition,
+			Title: "hard reset", Cause: "a hard reset was asked for while the module is on; it must be switched off first so no report lands mid-delete",
+			UserSafe: true, Message: "Switch the Compliance module off before a hard reset."},
+		{Code: CodeHardResetLegalHold, Symbol: "HARD_RESET_LEGAL_HOLD", Category: apperr.CategoryFailedPrecondition,
+			Title: "hard reset", Cause: "at least one case is under a legal hold, so the whole reset is refused and nothing is deleted",
+			UserSafe: true, Message: "A hard reset can't run while any case is under a legal hold."},
+		{Code: CodeHardResetNotApproved, Symbol: "HARD_RESET_NOT_APPROVED", Category: apperr.CategoryFailedPrecondition,
+			Title: "hard reset", Cause: "identity has no approved, unexpired, unused hard reset request for the compliance module, or the two admins on it are not different people",
+			UserSafe: true, Message: "This hard reset has no valid approval from a second admin."},
+		{Code: CodeHardResetRootRequired, Symbol: "HARD_RESET_ROOT_REQUIRED", Category: apperr.CategoryPermissionDenied,
+			Title: "hard reset", Cause: "the actor is not root in identity",
+			UserSafe: true, Message: "Only the root admin can run a hard reset."},
 	}
 }
 
@@ -120,6 +144,12 @@ var (
 	errImpersonating = errors.New("reporting: act-as is not allowed")
 	errNotAdmin      = errors.New("reporting: the actor may not manage the compliance settings")
 	errPublicLinkOff = errors.New("reporting: the public report link is off")
+	errModuleOff     = errors.New("reporting: the compliance module is off")
+	errConfirmation  = errors.New("reporting: the hard reset confirmation does not match")
+	errModuleOn      = errors.New("reporting: the module is still on")
+	errHeld          = errors.New("reporting: a case is under a legal hold")
+	errNotApproved   = errors.New("reporting: the hard reset has no valid approval")
+	errNotRoot       = errors.New("reporting: the actor is not root")
 )
 
 // StoreUnavailable codes a failed store call; op names it.
@@ -163,6 +193,24 @@ func SettingsAccessDenied() error { return apperr.Coded(CodeSettingsAccessDenied
 
 // PublicLinkOff codes a new anonymous report while the public link is off.
 func PublicLinkOff() error { return apperr.Coded(CodePublicLinkOff, errPublicLinkOff) }
+
+// ModuleOff codes an intake or case call while the module is off.
+func ModuleOff() error { return apperr.Coded(CodeModuleOff, errModuleOff) }
+
+// HardResetConfirmation codes a wrong or missing confirmation phrase.
+func HardResetConfirmation() error { return apperr.Coded(CodeHardResetConfirmation, errConfirmation) }
+
+// HardResetModuleOn codes a hard reset asked for while the module is on.
+func HardResetModuleOn() error { return apperr.Coded(CodeHardResetModuleOn, errModuleOn) }
+
+// HardResetLegalHold codes a hard reset a legal hold blocks.
+func HardResetLegalHold() error { return apperr.Coded(CodeHardResetLegalHold, errHeld) }
+
+// HardResetNotApproved codes a hard reset without a valid two-admin approval.
+func HardResetNotApproved() error { return apperr.Coded(CodeHardResetNotApproved, errNotApproved) }
+
+// HardResetRootRequired codes a hard reset asked for by someone who is not root.
+func HardResetRootRequired() error { return apperr.Coded(CodeHardResetRootRequired, errNotRoot) }
 
 type logSink struct{ l log.Logger }
 

@@ -58,6 +58,9 @@ type Options struct {
 	Policy workloadidentity.Policy
 	// OnDeny is called for every refused call, to audit it.
 	OnDeny workloadidentity.DenyHook
+	// Interceptors run after authentication and the actor are in place and
+	// before the handler, in order.
+	Interceptors []grpc.UnaryServerInterceptor
 	// Checker holds the dependencies readiness follows.
 	Checker *health.Checker
 	// CheckInterval is how often Health/Watch subscribers are brought up to
@@ -100,6 +103,7 @@ func Serve(ctx context.Context, lis net.Listener, lg log.Logger, opts Options, r
 	}
 	unary = append(unary, grpcactor.UnaryServerInterceptor(grpcactor.WithTrust(trust)))
 	stream = append(stream, grpcactor.StreamServerInterceptor(grpcactor.WithTrust(trust)))
+	unary = append(unary, opts.Interceptors...)
 	s := grpc.NewServer(
 		grpc.StatsHandler(gootel.GRPCServerStatsHandler()),
 		grpc.ChainUnaryInterceptor(unary...),

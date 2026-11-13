@@ -40,8 +40,8 @@ func (s *Store) Settings(ctx context.Context) (domain.Settings, error) {
 	var cats []byte
 	var by *string
 	err := s.q(ctx).QueryRow(ctx, `SELECT public_link_enabled, retention_days, intake_categories,
-			updated_at, updated_by_user_id
-		FROM compliance_settings`).Scan(&st.PublicLink, &st.RetentionDays, &cats, &st.UpdatedAt, &by)
+			module_enabled, updated_at, updated_by_user_id
+		FROM compliance_settings`).Scan(&st.PublicLink, &st.RetentionDays, &cats, &st.ModuleEnabled, &st.UpdatedAt, &by)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Settings{}, ErrNotFound
 	}

@@ -103,3 +103,17 @@ func (c *Checker) SettingsAdmin(ctx context.Context, userID string) error {
 	}
 	return errcodes.SettingsAccessDenied()
 }
+
+// Root returns nil when userID is the enabled, undeleted root in identity,
+// HardResetRootRequired when not, and IdentityUnavailable when identity can't
+// say. Identity decides root; a site admin or compliance admin is not root.
+func (c *Checker) Root(ctx context.Context, userID string) error {
+	u, err := c.lookup(ctx, userID, errcodes.HardResetRootRequired)
+	if err != nil {
+		return err
+	}
+	if !u.Root {
+		return errcodes.HardResetRootRequired()
+	}
+	return nil
+}

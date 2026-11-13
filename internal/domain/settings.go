@@ -43,14 +43,18 @@ type Settings struct {
 	// Categories are the intake categories, in form order. Empty means the
 	// form asks for none.
 	Categories []Category
-	UpdatedAt  time.Time
+	// ModuleEnabled is the Compliance module switch. Off, every intake and
+	// case call is refused and the data is kept. SaveSettings never changes
+	// it; SetModuleEnabled does.
+	ModuleEnabled bool
+	UpdatedAt     time.Time
 	// UpdatedBy is the user who saved them last; empty for the seed.
 	UpdatedBy string
 }
 
 // DefaultSettings are the settings before anyone saves them.
 func DefaultSettings() Settings {
-	return Settings{PublicLink: true, RetentionDays: DefaultRetentionDays}
+	return Settings{PublicLink: true, RetentionDays: DefaultRetentionDays, ModuleEnabled: true}
 }
 
 // Normalize trims and checks the settings.

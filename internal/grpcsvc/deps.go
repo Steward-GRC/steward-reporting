@@ -16,7 +16,9 @@ import (
 	grpcactor "github.com/Bugs5382/go-grpc-actor"
 	log "github.com/Bugs5382/go-log"
 	postgres "github.com/Bugs5382/go-postgres"
+	"google.golang.org/grpc"
 
+	identityv1 "github.com/Steward-GRC/steward-reporting/gen/go/thirdparty/identity/v1"
 	"github.com/Steward-GRC/steward-reporting/internal/access"
 	"github.com/Steward-GRC/steward-reporting/internal/audit"
 	"github.com/Steward-GRC/steward-reporting/internal/domain"
@@ -26,14 +28,23 @@ import (
 
 // Deps are what the handlers run on.
 type Deps struct {
-	DB         *postgres.DB
-	Store      *store.Store
-	Audit      *audit.Emitter
-	Officers   *access.Checker
+	DB       *postgres.DB
+	Store    *store.Store
+	Audit    *audit.Emitter
+	Officers *access.Checker
+	// HardResets redeems identity's approved hard reset requests.
+	HardResets HardResetRedeemer
 	NoticeDays domain.NoticeDays
 	// Now is the clock; time.Now when nil.
 	Now func() time.Time
 	Log log.Logger
+}
+
+// HardResetRedeemer is the one identity admin call a hard reset makes:
+// ConsumeHardReset spends an approved request once, for the module's own
+// service acting as itself.
+type HardResetRedeemer interface {
+	ConsumeHardReset(ctx context.Context, in *identityv1.ConsumeHardResetRequest, opts ...grpc.CallOption) (*identityv1.ConsumeHardResetResponse, error)
 }
 
 func (d Deps) now() time.Time {
@@ -58,6 +69,15 @@ func (d Deps) emit(ctx context.Context, action, actor, caseID string, attrs map[
 	if caseID != "" {
 		ev.Subject = "case:" + caseID
 	}
+	if err := d.Audit.Emit(ctx, ev); err != nil {
+		return errcodes.StoreUnavailable("audit "+action, err)
+	}
+	return nil
+}
+
+// emitSubject audits one event about a named subject that is not a case.
+func (d Deps) emitSubject(ctx context.Context, action, actor, subject string, attrs map[string]string) error {
+	ev := audit.Event{Tier: audit.TierAudit, Action: action, ActorUserID: actor, Subject: subject, Attributes: attrs}
 	if err := d.Audit.Emit(ctx, ev); err != nil {
 		return errcodes.StoreUnavailable("audit "+action, err)
 	}
